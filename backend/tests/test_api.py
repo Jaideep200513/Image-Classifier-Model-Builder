@@ -1,0 +1,91 @@
+import os
+import base64
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_create_and_get_project():
+    # 1. Create project
+    res = client.post("/projects", json={"name": "Test Project", "type": "image"})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["name"] == "Test Project"
+    project_id = data["id"]
+    assert len(data["classes"]) == 2
+
+    # 2. Get project
+    res_get = client.get(f"/projects/{project_id}")
+    assert res_get.status_code == 200
+    assert res_get.json()["id"] == project_id
+
+def test_class_management():
+    # Create project
+    res_proj = client.post("/projects", json={"name": "Class Test Project"})
+    project_id = res_proj.json()["id"]
+
+    # Add class
+    res_cls = client.post(f"/projects/{project_id}/classes", json={"name": "Cat"})
+    assert res_cls.status_code == 200
+    cls_data = res_cls.json()
+    assert cls_data["name"] == "Cat"
+    class_id = cls_data["id"]
+
+    # Patch class (rename & disable)
+    res_patch = client.patch(f"/classes/{class_id}", json={"name": "Feline", "disabled": True})
+    assert res_patch.status_code == 200
+    patched = res_patch.json()
+    assert patched["name"] == "Feline"
+    assert patched["disabled"] is True
+
+    # Delete class
+    res_del = client.delete(f"/classes/{class_id}")
+    assert res_del.status_code == 200
+
+def test_image_upload_capture_delete():
+    # Create project & class
+    res_proj = client.post("/projects", json={"name": "Image Test Project"})
+    project_id = res_proj.json()["id"]
+    res_cls = client.post(f"/projects/{project_id}/classes", json={"name": "Dog"})
+    class_id = res_cls.json()["id"]
+
+    # Upload dummy image
+    test_image_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x1f\x00\x00\x01\x05\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xbf\x00\xff\xd9"
+    files = [("files", ("test.jpg", test_image_bytes, "image/jpeg"))]
+    res_upload = client.post(f"/classes/{class_id}/upload", files=files)
+    assert res_upload.status_code == 200
+    uploaded_items = res_upload.json()
+    assert len(uploaded_items) == 1
+    image_id = uploaded_items[0]["id"]
+
+    # Capture image via base64 encoding of test bytes
+    valid_base64 = "data:image/jpeg;base64," + base64.b64encode(test_image_bytes).decode("utf-8")
+    res_cap = client.post(f"/classes/{class_id}/capture", json={"image_data": valid_base64})
+    assert res_cap.status_code == 200
+    captured_item = res_cap.json()
+    assert captured_item["id"].startswith("img-")
+
+    # Delete uploaded image
+    res_del_img = client.delete(f"/images/{image_id}")
+    assert res_del_img.status_code == 200
+
+def test_clear_class_images():
+    res_proj = client.post("/projects", json={"name": "Clear Class Test"})
+    project_id = res_proj.json()["id"]
+    res_cls = client.post(f"/projects/{project_id}/classes", json={"name": "Bird"})
+    class_id = res_cls.json()["id"]
+
+    test_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xd9"
+    files = [("files", ("bird.jpg", test_bytes, "image/jpeg"))]
+    client.post(f"/classes/{class_id}/upload", files=files)
+
+    res_clear = client.delete(f"/classes/{class_id}/images")
+    assert res_clear.status_code == 200
+    assert res_clear.json()["deleted_count"] == 1
+
+    res_get = client.get(f"/projects/{project_id}")
+    cls = [c for c in res_get.json()["classes"] if c["id"] == class_id][0]
+    assert cls["imageCount"] == 0
+    assert len(cls["images"]) == 0
+
