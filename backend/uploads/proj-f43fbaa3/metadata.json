@@ -1,0 +1,167 @@
+{
+  "id": "proj-f43fbaa3",
+  "name": "Inference Test Proj",
+  "type": "image",
+  "description": "",
+  "created_at": "2026-07-28T16:12:45.185027",
+  "classes": [
+    {
+      "id": "class-4d8c56",
+      "name": "Class 1",
+      "color": "bg-blue-100 text-blue-700",
+      "disabled": false,
+      "images": [
+        {
+          "id": "img-0449a27d",
+          "filename": "img-0449a27d.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-0449a27d.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:49.746511"
+        },
+        {
+          "id": "img-22fc078d",
+          "filename": "img-22fc078d.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-22fc078d.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:46.372344"
+        },
+        {
+          "id": "img-34da1236",
+          "filename": "img-34da1236.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-34da1236.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:50.492582"
+        },
+        {
+          "id": "img-4154c68d",
+          "filename": "img-4154c68d.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-4154c68d.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:48.345183"
+        },
+        {
+          "id": "img-62377ba0",
+          "filename": "img-62377ba0.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-62377ba0.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:51.138849"
+        },
+        {
+          "id": "img-655d4cbd",
+          "filename": "img-655d4cbd.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-655d4cbd.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:49.012899"
+        },
+        {
+          "id": "img-9984e39f",
+          "filename": "img-9984e39f.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-9984e39f.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:51.816656"
+        },
+        {
+          "id": "img-ad6f3990",
+          "filename": "img-ad6f3990.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-ad6f3990.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:47.678861"
+        },
+        {
+          "id": "img-b02e21b8",
+          "filename": "img-b02e21b8.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-b02e21b8.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:45.632763"
+        },
+        {
+          "id": "img-b22e9af8",
+          "filename": "img-b22e9af8.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 1/img-b22e9af8.jpg",
+          "class_id": "class-4d8c56",
+          "created_at": "2026-07-28T16:12:47.031788"
+        }
+      ],
+      "imageCount": 10
+    },
+    {
+      "id": "class-773e60",
+      "name": "Class 2",
+      "color": "bg-emerald-100 text-emerald-700",
+      "disabled": false,
+      "images": [
+        {
+          "id": "img-19968a7e",
+          "filename": "img-19968a7e.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-19968a7e.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:51.520077"
+        },
+        {
+          "id": "img-31a888c6",
+          "filename": "img-31a888c6.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-31a888c6.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:47.369402"
+        },
+        {
+          "id": "img-5e029947",
+          "filename": "img-5e029947.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-5e029947.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:48.639047"
+        },
+        {
+          "id": "img-6dbfc606",
+          "filename": "img-6dbfc606.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-6dbfc606.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:46.682423"
+        },
+        {
+          "id": "img-af6e830c",
+          "filename": "img-af6e830c.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-af6e830c.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:46.030411"
+        },
+        {
+          "id": "img-baa5c30e",
+          "filename": "img-baa5c30e.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-baa5c30e.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:50.791026"
+        },
+        {
+          "id": "img-e244c32d",
+          "filename": "img-e244c32d.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-e244c32d.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:49.320930"
+        },
+        {
+          "id": "img-e478651e",
+          "filename": "img-e478651e.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-e478651e.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:50.125964"
+        },
+        {
+          "id": "img-f992eaef",
+          "filename": "img-f992eaef.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-f992eaef.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:48.024345"
+        },
+        {
+          "id": "img-e0de1337",
+          "filename": "img-e0de1337.jpg",
+          "url": "/uploads/proj-f43fbaa3/Class 2/img-e0de1337.jpg",
+          "class_id": "class-773e60",
+          "created_at": "2026-07-28T16:12:52.148648"
+        }
+      ],
+      "imageCount": 10
+    }
+  ]
+}

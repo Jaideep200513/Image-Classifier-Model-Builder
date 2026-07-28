@@ -89,3 +89,23 @@ def test_clear_class_images():
     assert cls["imageCount"] == 0
     assert len(cls["images"]) == 0
 
+def test_training_status_idle():
+    res_proj = client.post("/projects", json={"name": "Training Test Project"})
+    project_id = res_proj.json()["id"]
+
+    res_status = client.get(f"/projects/{project_id}/train/status")
+    assert res_status.status_code == 200
+    status_data = res_status.json()
+    assert status_data["status"] == "idle"
+    assert status_data["progress"] == 0.0
+
+def test_training_validation_failure():
+    res_proj = client.post("/projects", json={"name": "Validation Test Project"})
+    project_id = res_proj.json()["id"]
+
+    # Try starting training with 0 images in default classes
+    res_train = client.post(f"/projects/{project_id}/train", json={"epochs": 5, "batchSize": 16, "learningRate": 0.001})
+    assert res_train.status_code == 400
+    assert "at least 10 images" in res_train.json()["detail"] or "required for training" in res_train.json()["detail"]
+
+

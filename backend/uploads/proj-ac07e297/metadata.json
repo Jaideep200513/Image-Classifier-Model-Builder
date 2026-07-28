@@ -1,0 +1,33 @@
+{
+  "id": "proj-ac07e297",
+  "name": "Clear Class Test",
+  "type": "image",
+  "description": "",
+  "created_at": "2026-07-28T16:11:42.008387",
+  "classes": [
+    {
+      "id": "class-c40b1a",
+      "name": "Class 1",
+      "color": "bg-blue-100 text-blue-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    },
+    {
+      "id": "class-f93533",
+      "name": "Class 2",
+      "color": "bg-emerald-100 text-emerald-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    },
+    {
+      "id": "class-f6b0a4",
+      "name": "Bird",
+      "color": "bg-violet-100 text-violet-700",
+      "disabled": false,
+      "imageCount": 0,
+      "images": []
+    }
+  ]
+}

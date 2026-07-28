@@ -4,17 +4,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.services.dataset_service import DatasetService
+from app.services.training_service import TrainingService
+from app.services.inference_service import InferenceService
+from app.services.export_service import ExportService
 from app.api.projects import router as projects_router
 from app.api.classes import router as classes_router
 from app.api.images import router as images_router
+from app.api.training import router as training_router
+from app.api.inference import router as inference_router
+from app.api.export import router as export_router
 
 uploads_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
 dataset_service = DatasetService(uploads_dir=uploads_directory)
+training_service = TrainingService(uploads_dir=uploads_directory)
+inference_service = InferenceService(uploads_dir=uploads_directory)
+export_service = ExportService(uploads_dir=uploads_directory)
 
 app = FastAPI(
     title="ModelForge API",
     description="Image Classification Model Preparation Platform — Backend API",
-    version="0.2.0",
+    version="1.0.0",
 )
 
 # Enable CORS for frontend integration
@@ -32,7 +41,10 @@ app.mount("/uploads", StaticFiles(directory=uploads_directory), name="uploads")
 app.include_router(projects_router)
 app.include_router(classes_router)
 app.include_router(images_router)
+app.include_router(training_router)
+app.include_router(inference_router)
+app.include_router(export_router)
 
 @app.get("/")
 def read_root():
-    return {"message": "ModelForge API is running", "version": "0.2.0"}
+    return {"message": "ModelForge API is running", "version": "1.0.0"}

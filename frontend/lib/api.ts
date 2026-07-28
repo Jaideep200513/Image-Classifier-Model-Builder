@@ -94,5 +94,71 @@ export const api = {
     request<{ success: boolean; class_id: string; deleted_count: number }>(`/classes/${classId}/images`, {
       method: "DELETE",
     }),
+
+  // Training
+  startTraining: (projectId: string, config: { epochs: number; batchSize: number; learningRate: number }) =>
+    request<any>(`/projects/${projectId}/train`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }),
+
+  getTrainingStatus: (projectId: string) =>
+    request<any>(`/projects/${projectId}/train/status`),
+
+  cancelTraining: (projectId: string) =>
+    request<any>(`/projects/${projectId}/train/cancel`, {
+      method: "POST",
+    }),
+
+  // Inference / Testing
+  getModelStatus: (projectId: string) =>
+    request<import("@/types").ModelStatusResponse>(`/projects/${projectId}/model-status`),
+
+  predictImage: (projectId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<import("@/types").PredictionResponse>(`/projects/${projectId}/predict/image`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+
+  predictWebcam: (projectId: string, base64Image: string) =>
+    request<import("@/types").PredictionResponse>(`/projects/${projectId}/predict/webcam`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_data: base64Image }),
+    }),
+
+  // Project Management & Export
+  getProjectInfo: (projectId: string) =>
+    request<import("@/types").ProjectStats>(`/projects/${projectId}/info`),
+
+  updateProject: (projectId: string, data: { name: string; description?: string }) =>
+    request<import("@/types").Project>(`/projects/${projectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }),
+
+  duplicateProject: (projectId: string) =>
+    request<import("@/types").Project>(`/projects/${projectId}/duplicate`, {
+      method: "POST",
+    }),
+
+  deleteProject: (projectId: string) =>
+    request<{ success: boolean; message: string }>(`/projects/${projectId}`, {
+      method: "DELETE",
+    }),
+
+  getExportInfo: (projectId: string) =>
+    request<import("@/types").ExportInfo>(`/projects/${projectId}/export/info`),
+
+  getExportKerasUrl: (projectId: string) =>
+    `${API_BASE}/projects/${projectId}/export/keras`,
+
+  getExportSavedModelUrl: (projectId: string) =>
+    `${API_BASE}/projects/${projectId}/export/savedmodel`,
 };
 

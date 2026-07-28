@@ -19,11 +19,36 @@ export interface ImageClass {
   images?: ImageItem[];
 }
 
+export interface ClassPrediction {
+  class_id: string;
+  class_name: string;
+  confidence: number; // 0–100
+  is_highest: boolean;
+  color: string;
+}
+
+export interface PredictionResponse {
+  predicted_class_id: string;
+  predicted_class_name: string;
+  confidence: number;
+  prediction_time_ms: number;
+  formatted_prediction_time: string;
+  predictions: ClassPrediction[];
+}
+
+export interface ModelStatusResponse {
+  has_model: boolean;
+  trained_at?: string | null;
+  classes: string[];
+  error?: string | null;
+}
+
 export interface PredictionResult {
   classId: string;
   className: string;
   confidence: number; // 0–100
   color: string;
+  isHighest?: boolean;
 }
 
 export type ProjectType = "image" | "audio" | "pose";
@@ -43,11 +68,27 @@ export interface TrainingConfig {
   learningRate: number;
 }
 
+export interface TrainingMetrics {
+  train_accuracy: number;
+  val_accuracy: number;
+  train_loss: number;
+  val_loss: number;
+  duration_seconds: number;
+  formatted_duration: string;
+}
+
 export interface TrainingState {
-  status: "idle" | "training" | "complete" | "error";
+  status: "idle" | "training" | "completed" | "error";
   progress: number; // 0–100
   currentEpoch: number;
+  totalEpochs: number;
+  elapsedTime: number; // seconds
+  formattedElapsedTime: string;
   config: TrainingConfig;
+  metrics?: TrainingMetrics | null;
+  error?: string | null;
+  hasTrainedModel?: boolean;
+  trainedAt?: string | null;
 }
 
 export type InputSource = "webcam" | "upload";
@@ -57,8 +98,22 @@ export interface NavLink {
   href: string;
 }
 
-export interface FeatureCard {
-  icon: string;
-  title: string;
+export interface ExportInfo {
+  has_model: boolean;
+  trained_at?: string | null;
+  model_size_bytes: number;
+  formatted_model_size: string;
+  classes_count: number;
+  formats: string[];
+  error?: string | null;
+}
+
+export interface ProjectStats {
+  id: string;
+  name: string;
   description: string;
+  classes_count: number;
+  images_count: number;
+  trained_at?: string | null;
+  has_model: boolean;
 }

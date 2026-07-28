@@ -51,7 +51,7 @@ export default function ConfirmLeaveModal({
 
           {/* Body */}
           <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/60 p-3.5 text-xs text-rose-900 leading-relaxed">
-            Going back to <span className="font-semibold">New Project</span> will permanently erase all uploaded image samples, webcam captures, and custom dataset classes.
+            Going back to <span className="font-semibold">New Project</span> will permanently erase all uploaded image samples, webcam captures, custom dataset classes, and the trained machine learning model.
           </div>
 
           {/* Footer buttons */}

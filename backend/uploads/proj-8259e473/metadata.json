@@ -1,0 +1,41 @@
+{
+  "id": "proj-8259e473",
+  "name": "Image Test Project",
+  "type": "image",
+  "description": "",
+  "created_at": "2026-07-28T16:27:43.016843",
+  "classes": [
+    {
+      "id": "class-2ed9ee",
+      "name": "Class 1",
+      "color": "bg-blue-100 text-blue-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    },
+    {
+      "id": "class-224840",
+      "name": "Class 2",
+      "color": "bg-emerald-100 text-emerald-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    },
+    {
+      "id": "class-b1190a",
+      "name": "Dog",
+      "color": "bg-violet-100 text-violet-700",
+      "disabled": false,
+      "imageCount": 1,
+      "images": [
+        {
+          "id": "img-544c40fb",
+          "filename": "img-544c40fb.jpg",
+          "url": "/uploads/proj-8259e473/Dog/img-544c40fb.jpg",
+          "class_id": "class-b1190a",
+          "created_at": "2026-07-28T16:27:44.250200"
+        }
+      ]
+    }
+  ]
+}

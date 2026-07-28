@@ -178,14 +178,22 @@ class DatasetService:
 
 
     def add_class(self, project_id: str, name: str) -> dict:
+        clean_name = name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Class name cannot be empty.")
+
         project = self.get_project(project_id)
+        for existing in project["classes"]:
+            if existing["name"].lower() == clean_name.lower():
+                raise HTTPException(status_code=400, detail=f"A class named '{clean_name}' already exists in this project.")
+
         class_count = len(project["classes"])
         color = CLASS_COLORS[class_count % len(CLASS_COLORS)]
         class_id = f"class-{uuid.uuid4().hex[:6]}"
 
         new_class = {
             "id": class_id,
-            "name": name,
+            "name": clean_name,
             "color": color,
             "disabled": False,
             "imageCount": 0,
@@ -193,7 +201,7 @@ class DatasetService:
         }
 
         project["classes"].append(new_class)
-        class_dir = os.path.join(self._get_project_dir(project_id), name)
+        class_dir = os.path.join(self._get_project_dir(project_id), clean_name)
         os.makedirs(class_dir, exist_ok=True)
 
         self._save_metadata(project_id, project)
@@ -224,6 +232,10 @@ class DatasetService:
         if name is not None and name.strip() and name.strip() != old_name:
             new_name = name.strip()
 
+            for existing in project["classes"]:
+                if existing["id"] != class_id and existing["name"].lower() == new_name.lower():
+                    raise HTTPException(status_code=400, detail=f"A class named '{new_name}' already exists in this project.")
+
             old_dir = os.path.join(self._get_project_dir(target_project_id), old_name)
             new_dir = os.path.join(self._get_project_dir(target_project_id), new_name)
 
@@ -241,6 +253,84 @@ class DatasetService:
 
         self._save_metadata(target_project_id, project)
         return target_class
+
+    def get_project_stats(self, project_id: str) -> dict:
+        project = self.get_project(project_id)
+        total_images = sum(cls.get("imageCount", len(cls.get("images", []))) for cls in project["classes"])
+
+        training_meta_path = os.path.join(self._get_project_dir(project_id), "training_metadata.json")
+        model_path = os.path.join(self._get_project_dir(project_id), "models", "model.keras")
+
+        has_model = os.path.exists(model_path)
+        trained_at = None
+        if os.path.exists(training_meta_path):
+            try:
+                with open(training_meta_path, "r", encoding="utf-8") as f:
+                    t_meta = json.load(f)
+                trained_at = t_meta.get("trained_at")
+            except Exception:
+                pass
+
+        return {
+            "id": project["id"],
+            "name": project["name"],
+            "description": project.get("description", ""),
+            "classes_count": len(project["classes"]),
+            "images_count": total_images,
+            "trained_at": trained_at,
+            "has_model": has_model
+        }
+
+    def update_project(self, project_id: str, name: str, description: Optional[str] = None) -> dict:
+        clean_name = name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+
+        project = self.get_project(project_id)
+        project["name"] = clean_name
+        if description is not None:
+            project["description"] = description
+
+        self._save_metadata(project_id, project)
+        return project
+
+    def duplicate_project(self, project_id: str) -> dict:
+        source_project = self.get_project(project_id)
+        new_id = f"project-{uuid.uuid4().hex[:8]}"
+        new_dir = self._get_project_dir(new_id)
+        os.makedirs(new_dir, exist_ok=True)
+
+        source_dir = self._get_project_dir(project_id)
+
+        # Copy image class folders
+        for cls in source_project["classes"]:
+            cls_name = cls["name"]
+            src_cls_dir = os.path.join(source_dir, cls_name)
+            dst_cls_dir = os.path.join(new_dir, cls_name)
+            if os.path.exists(src_cls_dir):
+                shutil.copytree(src_cls_dir, dst_cls_dir)
+            else:
+                os.makedirs(dst_cls_dir, exist_ok=True)
+
+        # Duplicate metadata structure
+        duplicated_project = json.loads(json.dumps(source_project))
+        duplicated_project["id"] = new_id
+        duplicated_project["name"] = f"{source_project['name']} (Copy)"
+        duplicated_project["created_at"] = datetime.now().isoformat()
+
+        # Update image URLs to point to new project ID
+        for cls in duplicated_project["classes"]:
+            for img in cls.get("images", []):
+                img["url"] = f"/uploads/{new_id}/{cls['name']}/{img['filename']}"
+
+        self._save_metadata(new_id, duplicated_project)
+        return duplicated_project
+
+    def delete_project(self, project_id: str) -> dict:
+        project_dir = self._get_project_dir(project_id)
+        if os.path.exists(project_dir):
+            shutil.rmtree(project_dir, ignore_errors=True)
+        return {"success": True, "message": f"Project '{project_id}' deleted successfully."}
 
     def delete_class(self, class_id: str) -> dict:
         target_project_id = None

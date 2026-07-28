@@ -1,0 +1,25 @@
+{
+  "id": "proj-686152a1",
+  "name": "Class Test Project",
+  "type": "image",
+  "description": "",
+  "created_at": "2026-07-28T15:51:33.662496",
+  "classes": [
+    {
+      "id": "class-16a5fa",
+      "name": "Class 1",
+      "color": "bg-blue-100 text-blue-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    },
+    {
+      "id": "class-5a8c1e",
+      "name": "Class 2",
+      "color": "bg-emerald-100 text-emerald-700",
+      "disabled": false,
+      "images": [],
+      "imageCount": 0
+    }
+  ]
+}

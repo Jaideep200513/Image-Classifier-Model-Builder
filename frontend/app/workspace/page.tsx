@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Save, Download, Settings, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import DatasetPanel from "@/components/dataset-panel/DatasetPanel";
 import TrainingPanel from "@/components/training-panel/TrainingPanel";
 import PreviewPanel from "@/components/preview-panel/PreviewPanel";
 import ConfirmLeaveModal from "@/components/dataset-panel/ConfirmLeaveModal";
+import ExportModal from "@/components/export-modal/ExportModal";
+import ProjectInfoModal from "@/components/project-modal/ProjectInfoModal";
 import { useProjectData } from "@/hooks/useProjectData";
+
+const DEFAULT_PROJECT_ID = "default-project";
 
 // Horizontal arrow connector between panels
 function FlowConnector() {
@@ -26,6 +31,8 @@ function FlowConnector() {
 export default function WorkspacePage() {
   const router = useRouter();
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showProjectInfoModal, setShowProjectInfoModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
   const {
@@ -44,10 +51,16 @@ export default function WorkspacePage() {
 
   const classes = project?.classes || [];
 
+  const queryClient = useQueryClient();
+
+
+
   const handleConfirmLeaveAndErase = async () => {
     setIsResetting(true);
     try {
       await resetProject();
+      queryClient.invalidateQueries({ queryKey: ["trainingStatus", DEFAULT_PROJECT_ID] });
+      queryClient.invalidateQueries({ queryKey: ["modelStatus", DEFAULT_PROJECT_ID] });
       setShowLeaveModal(false);
       router.push("/new-project");
     } catch {
@@ -99,14 +112,32 @@ export default function WorkspacePage() {
             className="hidden rounded-full px-2.5 py-0.5 text-[10px] font-semibold border sm:inline-flex"
             style={{ backgroundColor: "#f5f5f5", borderColor: "#e5e7eb", color: "#5f79ff" }}
           >
-            Phase 2
+            Phase 5
           </span>
-
         </div>
-        <Button variant="outline" size="sm" className="hidden gap-1.5 text-xs sm:flex" disabled id="save-project-btn">
-          <Save className="h-3.5 w-3.5" />
-          Save Project
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowProjectInfoModal(true)}
+            className="hidden gap-1.5 text-xs sm:flex cursor-pointer border-slate-200"
+            id="project-info-btn"
+          >
+            <Info className="h-3.5 w-3.5" />
+            Project Info
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setShowExportModal(true)}
+            className="btn-purple gap-1.5 text-xs flex cursor-pointer"
+            id="export-model-btn"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export Model
+          </Button>
+        </div>
       </motion.header>
 
       {/* ── Full-width canvas ── */}
@@ -149,7 +180,7 @@ export default function WorkspacePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.38, ease: "easeOut", delay: 0.18 }}
-            className="flex h-full w-56 flex-shrink-0 flex-col overflow-y-auto p-6 pt-12"
+            className="flex h-full w-72 flex-shrink-0 flex-col overflow-y-auto p-4 pt-6 pb-12"
           >
             <TrainingPanel classes={classes} />
           </motion.div>
@@ -162,9 +193,9 @@ export default function WorkspacePage() {
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.38, ease: "easeOut", delay: 0.3 }}
-            className="flex h-full w-80 flex-shrink-0 flex-col overflow-y-auto p-6 pt-8"
+            className="flex h-full w-80 flex-shrink-0 flex-col overflow-y-auto p-4 pt-6 pb-12"
           >
-            <PreviewPanel />
+            <PreviewPanel classes={classes} />
           </motion.div>
         </div>
 
@@ -185,7 +216,7 @@ export default function WorkspacePage() {
           </div>
 
           <TrainingPanel classes={classes} />
-          <PreviewPanel />
+          <PreviewPanel classes={classes} />
         </div>
       </div>
 
@@ -195,6 +226,21 @@ export default function WorkspacePage() {
         onClose={() => setShowLeaveModal(false)}
         onConfirm={handleConfirmLeaveAndErase}
         isResetting={isResetting}
+      />
+
+      {/* Model Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
+
+      {/* Project Info & Settings Modal */}
+      <ProjectInfoModal
+        isOpen={showProjectInfoModal}
+        onClose={() => setShowProjectInfoModal(false)}
+        onProjectUpdated={() => {
+          queryClient.invalidateQueries({ queryKey: ["project", DEFAULT_PROJECT_ID] });
+        }}
       />
     </div>
   );

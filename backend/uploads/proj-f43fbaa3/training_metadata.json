@@ -1,0 +1,22 @@
+{
+  "trained_at": "2026-07-28T16:13:02.083082",
+  "duration_seconds": 9.45,
+  "formatted_duration": "9s",
+  "metrics": {
+    "train_accuracy": 0.4375,
+    "val_accuracy": 0.75,
+    "train_loss": 0.7725,
+    "val_loss": 0.5792,
+    "duration_seconds": 9.45,
+    "formatted_duration": "9s"
+  },
+  "config": {
+    "epochs": 2,
+    "batchSize": 4,
+    "learningRate": 0.001
+  },
+  "classes": [
+    "Class 1",
+    "Class 2"
+  ]
+}

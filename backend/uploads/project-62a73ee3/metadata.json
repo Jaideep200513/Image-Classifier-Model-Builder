@@ -1,0 +1,251 @@
+{
+  "id": "project-62a73ee3",
+  "name": "Test Project (Copy)",
+  "type": "image",
+  "description": "Custom Image Classification Project",
+  "created_at": "2026-07-28T16:23:33.164314",
+  "classes": [
+    {
+      "id": "class-0a1128",
+      "name": "A",
+      "color": "bg-blue-100 text-blue-700",
+      "disabled": false,
+      "images": [
+        {
+          "id": "img-1070207a",
+          "filename": "img-1070207a.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-1070207a.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:07.795599"
+        },
+        {
+          "id": "img-35e071f1",
+          "filename": "img-35e071f1.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-35e071f1.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:07.589403"
+        },
+        {
+          "id": "img-4d659abe",
+          "filename": "img-4d659abe.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-4d659abe.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:06.057620"
+        },
+        {
+          "id": "img-51df9368",
+          "filename": "img-51df9368.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-51df9368.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:06.514383"
+        },
+        {
+          "id": "img-5d454795",
+          "filename": "img-5d454795.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-5d454795.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:10.056061"
+        },
+        {
+          "id": "img-605c5f49",
+          "filename": "img-605c5f49.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-605c5f49.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:07.141784"
+        },
+        {
+          "id": "img-6836f555",
+          "filename": "img-6836f555.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-6836f555.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:09.452834"
+        },
+        {
+          "id": "img-855c0382",
+          "filename": "img-855c0382.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-855c0382.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:06.878861"
+        },
+        {
+          "id": "img-92b6261d",
+          "filename": "img-92b6261d.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-92b6261d.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:10.461204"
+        },
+        {
+          "id": "img-92c533cc",
+          "filename": "img-92c533cc.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-92c533cc.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:05.773611"
+        },
+        {
+          "id": "img-b8567c62",
+          "filename": "img-b8567c62.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-b8567c62.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:09.752955"
+        },
+        {
+          "id": "img-be124e2a",
+          "filename": "img-be124e2a.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-be124e2a.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:07.361195"
+        },
+        {
+          "id": "img-da1e7e28",
+          "filename": "img-da1e7e28.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-da1e7e28.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:10.308713"
+        },
+        {
+          "id": "img-dd37f8a2",
+          "filename": "img-dd37f8a2.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-dd37f8a2.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:03.362466"
+        },
+        {
+          "id": "img-e52e86c3",
+          "filename": "img-e52e86c3.jpg",
+          "url": "/uploads/project-62a73ee3/A/img-e52e86c3.jpg",
+          "class_id": "class-0a1128",
+          "created_at": "2026-07-28T16:15:06.291925"
+        }
+      ],
+      "imageCount": 15
+    },
+    {
+      "id": "class-fead8e",
+      "name": "B",
+      "color": "bg-emerald-100 text-emerald-700",
+      "disabled": false,
+      "images": [
+        {
+          "id": "img-02e2ff22",
+          "filename": "img-02e2ff22.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-02e2ff22.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:23.614416"
+        },
+        {
+          "id": "img-0e50717b",
+          "filename": "img-0e50717b.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-0e50717b.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:22.698375"
+        },
+        {
+          "id": "img-0f74eb68",
+          "filename": "img-0f74eb68.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-0f74eb68.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:26.155810"
+        },
+        {
+          "id": "img-1bd416df",
+          "filename": "img-1bd416df.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-1bd416df.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:26.453545"
+        },
+        {
+          "id": "img-44f6eedc",
+          "filename": "img-44f6eedc.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-44f6eedc.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:24.582818"
+        },
+        {
+          "id": "img-46298c25",
+          "filename": "img-46298c25.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-46298c25.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:23.098128"
+        },
+        {
+          "id": "img-5d4e01a9",
+          "filename": "img-5d4e01a9.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-5d4e01a9.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:20.891371"
+        },
+        {
+          "id": "img-68138a63",
+          "filename": "img-68138a63.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-68138a63.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:24.845795"
+        },
+        {
+          "id": "img-6c2b0688",
+          "filename": "img-6c2b0688.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-6c2b0688.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:23.313078"
+        },
+        {
+          "id": "img-71384b5f",
+          "filename": "img-71384b5f.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-71384b5f.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:25.227580"
+        },
+        {
+          "id": "img-9977234a",
+          "filename": "img-9977234a.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-9977234a.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:24.241389"
+        },
+        {
+          "id": "img-b15715c5",
+          "filename": "img-b15715c5.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-b15715c5.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:23.864473"
+        },
+        {
+          "id": "img-b7ad258d",
+          "filename": "img-b7ad258d.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-b7ad258d.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:26.696709"
+        },
+        {
+          "id": "img-bb816966",
+          "filename": "img-bb816966.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-bb816966.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:25.053784"
+        },
+        {
+          "id": "img-d2f4c50d",
+          "filename": "img-d2f4c50d.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-d2f4c50d.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:26.981488"
+        },
+        {
+          "id": "img-ee402709",
+          "filename": "img-ee402709.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-ee402709.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:24.007681"
+        },
+        {
+          "id": "img-ef0b2b05",
+          "filename": "img-ef0b2b05.jpg",
+          "url": "/uploads/project-62a73ee3/B/img-ef0b2b05.jpg",
+          "class_id": "class-fead8e",
+          "created_at": "2026-07-28T16:15:21.257036"
+        }
+      ],
+      "imageCount": 17
+    }
+  ]
+}
