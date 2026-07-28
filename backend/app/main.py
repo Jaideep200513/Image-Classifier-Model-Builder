@@ -4,6 +4,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+# Load .env file if present (ignored in Docker where env vars are injected)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from app.services.dataset_service import DatasetService
 from app.services.training_service import TrainingService
 from app.services.inference_service import InferenceService
@@ -43,10 +50,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Enable CORS for frontend integration
+# Enable CORS — reads CORS_ORIGINS env var (comma-separated list of allowed origins)
+# In production, set CORS_ORIGINS=https://yourdomain.com
+_raw_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

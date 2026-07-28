@@ -1,0 +1,9 @@
+fastapi==0.137.1
+uvicorn[standard]==0.49.0
+python-multipart==0.0.32
+pillow==12.3.0
+tensorflow==2.19.0
+keras==3.9.0
+numpy==2.2.5
+pydantic==2.13.4
+python-dotenv==1.1.1

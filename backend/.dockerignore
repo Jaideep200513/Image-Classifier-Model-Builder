@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.env.*
+!.env.example
+uploads/
+*.keras
+*.h5
+.pytest_cache/
+tests/
+*.log

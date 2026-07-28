@@ -1,0 +1,27 @@
+# Environment secrets — NEVER commit these
+.env
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Uploads and trained models (runtime data)
+backend/uploads/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Build artifacts
+frontend/out/
+frontend/build/
+frontend/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
