@@ -1,4 +1,5 @@
 import os
+import shutil
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +16,22 @@ from app.api.inference import router as inference_router
 from app.api.export import router as export_router
 
 uploads_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "uploads"))
+
+# Cleanly wipe previous uploads directory on server startup/restart so data does not linger
+def wipe_uploads_on_startup(directory: str):
+    if os.path.exists(directory):
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+            except Exception:
+                pass
+
+wipe_uploads_on_startup(uploads_directory)
+
 dataset_service = DatasetService(uploads_dir=uploads_directory)
 training_service = TrainingService(uploads_dir=uploads_directory)
 inference_service = InferenceService(uploads_dir=uploads_directory)

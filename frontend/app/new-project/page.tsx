@@ -76,7 +76,7 @@ export default function NewProjectPage() {
               © {new Date().getFullYear()} ModelForge. Internal use only.
             </p>
             <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#9c9c9c" }}>
-              Phase 2 — Functional Platform
+              ModelForge Platform
             </p>
           </div>
         </div>

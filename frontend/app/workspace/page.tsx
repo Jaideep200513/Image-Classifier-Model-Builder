@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Download, Settings, Info } from "lucide-react";
+import { ArrowLeft, Save, Download, Settings, Info, Edit2, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import DatasetPanel from "@/components/dataset-panel/DatasetPanel";
 import TrainingPanel from "@/components/training-panel/TrainingPanel";
 import PreviewPanel from "@/components/preview-panel/PreviewPanel";
@@ -13,6 +15,7 @@ import ConfirmLeaveModal from "@/components/dataset-panel/ConfirmLeaveModal";
 import ExportModal from "@/components/export-modal/ExportModal";
 import ProjectInfoModal from "@/components/project-modal/ProjectInfoModal";
 import { useProjectData } from "@/hooks/useProjectData";
+import { api } from "@/lib/api";
 
 const DEFAULT_PROJECT_ID = "default-project";
 
@@ -34,6 +37,25 @@ export default function WorkspacePage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showProjectInfoModal, setShowProjectInfoModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isEditingProjectName, setIsEditingProjectName] = useState(false);
+  const [projectNameInput, setProjectNameInput] = useState("");
+
+  const handleSaveProjectName = async () => {
+    const clean = projectNameInput.trim();
+    if (!clean) {
+      setIsEditingProjectName(false);
+      return;
+    }
+    try {
+      await api.updateProject(DEFAULT_PROJECT_ID, { name: clean });
+      queryClient.invalidateQueries({ queryKey: ["project", DEFAULT_PROJECT_ID] });
+      toast.success("Project renamed successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to rename project");
+    } finally {
+      setIsEditingProjectName(false);
+    }
+  };
 
   const {
     project,
@@ -52,6 +74,43 @@ export default function WorkspacePage() {
   const classes = project?.classes || [];
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // 1. Trap browser back button to show ConfirmLeaveModal
+    window.history.pushState({ page: "workspace" }, "", window.location.href);
+
+    const handlePopState = () => {
+      window.history.pushState({ page: "workspace" }, "", window.location.href);
+      setShowLeaveModal(true);
+    };
+
+    // 2. Trap browser tab reload & close
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Going back or reloading will permanently erase all uploaded image samples and trained models.";
+      return e.returnValue;
+    };
+
+    // 3. Send beacon to reset backend data if tab is closed or reloaded
+    const handlePageHide = () => {
+      const resetUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/projects/${DEFAULT_PROJECT_ID}/reset`;
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(resetUrl);
+      } else {
+        fetch(resetUrl, { method: "POST", keepalive: true }).catch(() => {});
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, []);
 
 
 
@@ -106,14 +165,42 @@ export default function WorkspacePage() {
             </div>
             <span className="hidden text-sm font-bold text-foreground sm:block" style={{ fontFamily: "'Inter', sans-serif" }}>ModelForge</span>
           </div>
-          <span className="text-muted-foreground/40 select-none">/</span>
-          <span className="text-sm text-muted-foreground">{project?.name || "Image Project"}</span>
-          <span
-            className="hidden rounded-full px-2.5 py-0.5 text-[10px] font-semibold border sm:inline-flex"
-            style={{ backgroundColor: "#f5f5f5", borderColor: "#e5e7eb", color: "#5f79ff" }}
-          >
-            Phase 5
-          </span>
+          {isEditingProjectName ? (
+            <div className="flex items-center gap-1">
+              <Input
+                value={projectNameInput}
+                onChange={(e) => setProjectNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveProjectName();
+                  if (e.key === "Escape") setIsEditingProjectName(false);
+                }}
+                autoFocus
+                className="h-7 text-xs font-semibold px-2 w-36 sm:w-48 bg-white border-purple-300 focus-visible:ring-purple-400"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleSaveProjectName}
+                className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 group cursor-pointer"
+              onClick={() => {
+                setProjectNameInput(project?.name || "Image Project");
+                setIsEditingProjectName(true);
+              }}
+              title="Click to rename project"
+            >
+              <span className="text-sm font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
+                {project?.name || "Image Project"}
+              </span>
+              <Edit2 className="h-3 w-3 text-muted-foreground/60 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

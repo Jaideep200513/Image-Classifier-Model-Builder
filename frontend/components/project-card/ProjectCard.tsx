@@ -1,18 +1,31 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ImageIcon, ArrowRight } from "lucide-react";
 import SpotlightCard from "@/components/bits/SpotlightCard";
+import { api } from "@/lib/api";
 
-const SAMPLE_GRADIENTS = [
-  { from: "#5f79ff", to: "#9bb0ff" },
-  { from: "#01fe93", to: "#5f79ff" },
-  { from: "#d9defc", to: "#5f79ff" },
-];
+
 
 export default function ProjectCard() {
+  const router = useRouter();
+
+  async function handleCreateProject(e: React.MouseEvent) {
+    e.preventDefault();
+    try {
+      await api.resetProject("default-project");
+    } catch (err) {
+      // Ignore if server unreachable
+    }
+    router.push("/workspace");
+  }
+
   return (
-    <Link href="/workspace" className="block group focus:outline-none" id="create-project-card">
+    <div
+      onClick={handleCreateProject}
+      className="block group focus:outline-none"
+      id="create-project-card"
+    >
       <div
         className="relative overflow-hidden rounded-2xl border transition-all duration-300 cursor-pointer bg-white"
         style={{ borderColor: "#e5e7eb", borderRadius: "16px" }}
@@ -27,14 +40,27 @@ export default function ProjectCard() {
           (e.currentTarget as HTMLDivElement).style.transform = "";
         }}
       >
-        {/* Sample Gradients Strip */}
-        <div className="flex h-36 overflow-hidden">
-          {SAMPLE_GRADIENTS.map((g, i) => (
+        {/* Sample Class Drawings Header */}
+        <div className="grid grid-cols-3 h-36 border-b border-slate-100 overflow-hidden bg-[#f9f8f6]">
+          {[
+            { name: "Cat", src: "/cat-sample.png", bg: "#f5f2eb" },
+            { name: "Dog", src: "/dog-sample.png", bg: "#f9f8f6" },
+            { name: "Bird", src: "/bird-sample.png", bg: "#ffffff" },
+          ].map((item, i) => (
             <div
               key={i}
-              className="flex-1 transition-transform duration-500 group-hover:scale-105"
-              style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
-            />
+              className="relative flex items-center justify-center p-3 border-r last:border-r-0 border-slate-200/60 overflow-hidden"
+              style={{ backgroundColor: item.bg }}
+            >
+              <img
+                src={item.src}
+                alt={`${item.name} Sample`}
+                className="h-full w-full object-contain mix-blend-multiply select-none transition-transform duration-500 group-hover:scale-105"
+              />
+              <span className="absolute bottom-1.5 left-2 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 bg-white/80 rounded border border-slate-200/80 backdrop-blur-xs">
+                {item.name}
+              </span>
+            </div>
           ))}
         </div>
 
@@ -55,7 +81,7 @@ export default function ProjectCard() {
                 color: "#5f79ff",
               }}
             >
-              Phase 2 — Active
+              Ready to Train
             </span>
           </div>
 
@@ -67,7 +93,7 @@ export default function ProjectCard() {
           </p>
 
           <button
-            className="btn-violet w-full flex items-center justify-center gap-2 text-sm"
+            className="btn-violet w-full flex items-center justify-center gap-2 text-sm cursor-pointer"
             id="create-project-btn"
           >
             Create Project
@@ -75,6 +101,6 @@ export default function ProjectCard() {
           </button>
         </SpotlightCard>
       </div>
-    </Link>
+    </div>
   );
 }

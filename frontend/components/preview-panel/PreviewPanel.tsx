@@ -150,12 +150,6 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
           </div>
           <span className="text-sm font-bold" style={{ color: "#1a1a2e" }}>Preview &amp; Test</span>
         </div>
-        <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-semibold border"
-          style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", color: "#15803d" }}
-        >
-          Phase 4
-        </span>
       </div>
 
       {/* ── Body ── */}

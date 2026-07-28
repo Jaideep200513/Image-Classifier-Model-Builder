@@ -21,7 +21,7 @@ export default function LandingPage() {
               © {new Date().getFullYear()} ModelForge. Internal use only.
             </p>
             <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "12px", color: "#9c9c9c" }}>
-              Phase 1 — Frontend Preview
+              ModelForge Platform
             </p>
           </div>
         </div>

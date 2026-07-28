@@ -108,7 +108,7 @@ export default function ExportModal({
                 <p className="text-[11px] opacity-80 mt-0.5">
                   {exportInfo.has_model
                     ? "Package contains model weights, classes.json, and training metadata."
-                    : "Please train a model in Phase 3 before exporting."}
+                    : "Please train a model before exporting."}
                 </p>
               </div>
             </div>

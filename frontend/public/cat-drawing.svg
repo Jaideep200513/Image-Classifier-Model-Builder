@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500" width="100%" height="100%">
+  <rect width="600" height="500" fill="#f7f4ee" />
+  <g fill="none" stroke="#4a3525" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cat Ears -->
+    <path d="M 235 175 C 220 120 250 170 260 215 C 270 160 290 155 295 200" />
+    <path d="M 245 180 L 260 210" stroke-width="2.5" opacity="0.7" />
+    
+    <!-- Head & Muzzle -->
+    <path d="M 295 200 C 310 220 325 245 320 270" />
+    <path d="M 235 250 C 230 275 240 310 265 315 C 280 318 295 305 305 290" />
+    <path d="M 238 290 C 230 300 245 315 260 310" />
+    <path d="M 250 265 C 265 260 280 270 290 265" stroke-width="2" />
+    
+    <!-- Eyes closed / serene -->
+    <path d="M 252 245 C 260 252 272 250 278 244" stroke-width="3" />
+
+    <!-- Body & Spine -->
+    <path d="M 295 210 C 340 260 365 330 355 410" stroke-width="4.5" />
+    <path d="M 265 315 C 268 360 270 410 275 450" stroke-width="4.5" />
+    <path d="M 320 350 C 322 390 320 425 318 450" stroke-width="3.5" />
+
+    <!-- Front Legs & Paws -->
+    <path d="M 275 450 C 285 452 300 452 318 450" stroke-width="4" />
+    
+    <!-- Back / Flank Curve -->
+    <path d="M 265 315 C 235 340 230 400 250 435 C 260 450 280 445 300 440" stroke-width="3.5" />
+
+    <!-- Tail sweeping below -->
+    <path d="M 355 400 C 390 420 395 470 340 480 C 270 495 210 475 215 465 C 220 455 280 468 335 458 C 375 450 375 425 345 405" fill="#4a3525" opacity="0.9" />
+  </g>
+</svg>

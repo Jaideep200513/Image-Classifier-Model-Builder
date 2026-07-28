@@ -40,7 +40,7 @@ const FEATURES = [
     icon: Shield,
     title: "Model Export",
     description:
-      "Export trained models to TensorFlow.js, TFLite, or Coral Edge TPU for production use.",
+      "Export trained models to Keras (.keras) or TensorFlow SavedModel ZIP packages for deployment.",
   },
 ];
 
@@ -59,15 +59,15 @@ const FAQ_ITEMS = [
   },
   {
     q: "What image formats are supported?",
-    a: "JPEG, PNG, WebP, and GIF are all supported. Images are automatically resized and preprocessed.",
+    a: "JPEG, PNG, and WebP images, as well as live webcam frames, are all supported and automatically preprocessed.",
   },
   {
     q: "Can I export the trained model?",
-    a: "Yes — in Phase 2, you will be able to export to TensorFlow.js, TFLite, and Coral Edge TPU formats.",
+    a: "Yes — you can export your trained model directly as Keras (.keras) and TensorFlow SavedModel packages.",
   },
   {
     q: "Is my data stored on a server?",
-    a: "Phase 1 is frontend-only. In Phase 2 we plan local processing with no cloud upload required.",
+    a: "Your dataset is processed securely with local model training and direct export capabilities.",
   },
 ];
 
@@ -234,37 +234,7 @@ export default function Hero() {
             {/* ── Left: Copy ── */}
             <motion.div variants={stagger} initial="hidden" animate="show">
 
-              {/* Phase badge */}
-              <motion.div variants={fadeUp} className="mb-6">
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: "12px",
-                    fontWeight: 400,
-                    color: "#5f79ff",
-                    backgroundColor: "#f5f5f5",
-                    border: "1px solid #d9defc",
-                    borderRadius: "100px",
-                    padding: "5px 14px",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: "6px",
-                      height: "6px",
-                      borderRadius: "50%",
-                      backgroundColor: "#01fe93",
-                      flexShrink: 0,
-                    }}
-                  />
-                  Phase 1 — Frontend Preview
-                </span>
-              </motion.div>
+
 
               {/* Display headline — Cormorant Garamond 300 */}
               <motion.h1
@@ -401,40 +371,19 @@ export default function Hero() {
                   </span>
                 </div>
 
-                {/* Webcam placeholder */}
+                {/* Live Prediction Image Container */}
                 <div
-                  className="mb-5 flex items-center justify-center"
+                  className="mb-5 flex items-center justify-center overflow-hidden rounded-xl border border-slate-200"
                   style={{
                     height: "176px",
-                    background: "#f5f5f5",
-                    borderRadius: "12px",
-                    border: "1px solid #e5e7eb",
+                    background: "#f5f2eb",
                   }}
                 >
-                  <div className="text-center">
-                    <div
-                      className="mx-auto mb-2 flex items-center justify-center"
-                      style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        backgroundColor: "#d9defc",
-                      }}
-                    >
-                      <ImageIcon
-                        style={{ width: "22px", height: "22px", color: "#5f79ff", opacity: 0.7 }}
-                      />
-                    </div>
-                    <p
-                      style={{
-                        fontFamily: "'Inter', sans-serif",
-                        fontSize: "12px",
-                        color: "#9c9c9c",
-                      }}
-                    >
-                      Webcam Preview
-                    </p>
-                  </div>
+                  <img
+                    src="/cat-sample.png"
+                    alt="Cat Line Art Sample"
+                    className="h-full w-full object-contain select-none mix-blend-multiply"
+                  />
                 </div>
 
                 {/* Confidence bars */}
