@@ -117,3 +117,30 @@ export interface ProjectStats {
   trained_at?: string | null;
   has_model: boolean;
 }
+
+export interface EpochMetric {
+  epoch: number;
+  accuracy?: number;
+  val_accuracy?: number;
+  loss?: number;
+  val_loss?: number;
+}
+
+export interface ClassAccuracyStat {
+  class_name: string;
+  accuracy: number;
+  sample_count: number;
+}
+
+export interface ConfusionMatrixData {
+  classes: string[];
+  matrix: number[][];
+}
+
+export interface UnderTheHoodAnalytics {
+  epochs: number;
+  accuracy_per_epoch: EpochMetric[];
+  loss_per_epoch: EpochMetric[];
+  accuracy_per_class: ClassAccuracyStat[];
+  confusion_matrix: ConfusionMatrixData;
+}

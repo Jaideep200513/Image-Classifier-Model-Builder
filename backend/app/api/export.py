@@ -30,3 +30,22 @@ def download_export_savedmodel(id: str, service: ExportService = Depends(get_exp
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+@router.get("/{id}/export/tfjs")
+def download_export_tfjs(id: str, service: ExportService = Depends(get_export_service)):
+    zip_buffer, filename = service.export_tfjs_zip(id)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+@router.get("/{id}/export/tm")
+def download_export_tm(id: str, service: ExportService = Depends(get_export_service)):
+    zip_buffer, filename = service.export_tm_zip(id)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+

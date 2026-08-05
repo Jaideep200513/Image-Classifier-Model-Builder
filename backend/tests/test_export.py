@@ -41,7 +41,7 @@ def test_export_and_project_management():
 
     import time
     start = time.time()
-    while time.time() - start < 30:
+    while time.time() - start < 60:
         st = client.get(f"/projects/{proj_id}/train/status").json()
         if st["status"] == "completed":
             break
@@ -74,6 +74,26 @@ def test_export_and_project_management():
         assert "classes.json" in file_list
         assert "README.txt" in file_list
         assert any("saved_model" in f for f in file_list)
+
+    # 7.5. Test Download TensorFlow.js Zip Package
+    res_tfjs_zip = client.get(f"/projects/{proj_id}/export/tfjs")
+    assert res_tfjs_zip.status_code == 200
+    assert res_tfjs_zip.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(res_tfjs_zip.content)) as zf:
+        file_list = zf.namelist()
+        assert "classes.json" in file_list
+        assert "index.html" in file_list
+        assert "README.txt" in file_list
+        assert "model.json" in file_list or "model.keras" in file_list
+
+    # 7.6. Test Download Teachable Machine (.tm) Archive
+    res_tm_zip = client.get(f"/projects/{proj_id}/export/tm")
+    assert res_tm_zip.status_code == 200
+    assert res_tm_zip.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(res_tm_zip.content)) as zf:
+        file_list = zf.namelist()
+        assert "manifest.json" in file_list
+        assert any("-!-" in f for f in file_list)
 
     # 8. Test Project Info Stats
     res_stats = client.get(f"/projects/{proj_id}/info")

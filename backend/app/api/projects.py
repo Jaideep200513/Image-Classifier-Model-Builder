@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from app.schemas.project import Project, CreateProjectRequest, CreateClassRequest, ImageClass
 from app.schemas.export import ProjectStatsResponse, UpdateProjectRequest
 from app.services.dataset_service import DatasetService
@@ -46,4 +46,13 @@ def reset_project(id: str, service: DatasetService = Depends(get_dataset_service
     training_service.clear_job(id)
     inference_service.clear_cache(id)
     return service.reset_project(id)
+
+@router.post("/{id}/import-tm", response_model=Project)
+async def import_tm_project(id: str, file: UploadFile = File(...), service: DatasetService = Depends(get_dataset_service)):
+    from app.main import training_service, inference_service
+    training_service.clear_job(id)
+    inference_service.clear_cache(id)
+    content = await file.read()
+    return service.import_tm_project(project_id=id, file_bytes=content, filename=file.filename or "project.tm")
+
 

@@ -30,20 +30,37 @@ export default function WebcamCaptureModal({
   const [capturedCount, setCapturedCount] = useState(0);
   const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
   // Initialize camera stream
   const startCamera = useCallback(async (deviceId?: string) => {
     try {
+      setCameraError(null);
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
 
-      const constraints: MediaStreamConstraints = {
+      // Notify other components (e.g., PreviewPanel) to release camera
+      window.dispatchEvent(new CustomEvent("webcam-modal-open"));
+
+      let constraints: MediaStreamConstraints = {
         video: deviceId
           ? { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
           : { width: { ideal: 640 }, height: { ideal: 480 } },
       };
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err: any) {
+        // Retry with basic video constraints if overconstrained or busy
+        if (err.name === "NotReadableError" || err.name === "OverconstrainedError") {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } else {
+          throw err;
+        }
+      }
+
       setStream(mediaStream);
       setHasPermission(true);
 
@@ -63,7 +80,13 @@ export default function WebcamCaptureModal({
       }
     } catch (err: any) {
       setHasPermission(false);
-      toast.error("Camera access denied or camera unavailable.");
+      if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setCameraError("Camera is currently in use by another application or tab.");
+        toast.error("Camera in use by another application.");
+      } else {
+        setCameraError("Camera access denied or unavailable.");
+        toast.error("Camera access denied or unavailable.");
+      }
     }
   }, []);
 
@@ -89,6 +112,7 @@ export default function WebcamCaptureModal({
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
+    window.dispatchEvent(new CustomEvent("webcam-modal-close"));
   };
 
   const switchCamera = () => {
@@ -158,31 +182,40 @@ export default function WebcamCaptureModal({
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: "#e2e5f0" }}>
             <div>
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Camera className="h-4 w-4 text-primary" />
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Camera className="h-5 w-5 text-primary" />
                 Capture Webcam Samples
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Adding to <span className="font-semibold text-foreground">{className}</span>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Adding to <span className="font-bold text-foreground">{className}</span>
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-full p-1 text-muted-foreground hover:bg-muted transition-colors"
+              className="rounded-full p-1.5 text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Video Preview */}
           <div className="relative mt-4 overflow-hidden rounded-xl bg-black aspect-video flex items-center justify-center">
             {hasPermission === false ? (
-              <div className="p-6 text-center text-white">
-                <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-2" />
-                <p className="text-sm font-semibold">Camera Access Denied</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Please allow camera permission in your browser settings to capture samples.
+              <div className="p-6 text-center text-white space-y-2">
+                <AlertCircle className="h-10 w-10 text-rose-500 mx-auto" />
+                <p className="text-base font-semibold">Camera Unavailable</p>
+                <p className="text-sm text-gray-300 max-w-xs mx-auto">
+                  {cameraError || "Camera is in use by another application or permission was denied."}
                 </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startCamera()}
+                  className="mt-2 text-sm border-white/20 bg-white/10 hover:bg-white/20 text-white cursor-pointer"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Retry Camera
+                </Button>
               </div>
             ) : (
               <>
@@ -195,8 +228,8 @@ export default function WebcamCaptureModal({
                 />
                 {/* Live recording indicator */}
                 {isRecording && (
-                  <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-rose-500/90 px-3 py-1 text-xs font-medium text-white shadow-md animate-pulse">
-                    <Radio className="h-3 w-3" />
+                  <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-rose-500/90 px-3.5 py-1.5 text-sm font-semibold text-white shadow-md animate-pulse">
+                    <Radio className="h-4 w-4" />
                     Recording... ({capturedCount} captured)
                   </div>
                 )}
@@ -214,9 +247,9 @@ export default function WebcamCaptureModal({
                 size="sm"
                 onClick={switchCamera}
                 disabled={!hasPermission}
-                className="gap-1.5 text-xs"
+                className="gap-1.5 text-sm font-medium cursor-pointer"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-4 w-4" />
                 Switch Camera
               </Button>
             )}
@@ -230,20 +263,20 @@ export default function WebcamCaptureModal({
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
                 disabled={!hasPermission}
-                className={`relative flex h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-95 ${
+                className={`relative flex h-16 w-16 items-center justify-center rounded-full transition-transform active:scale-95 ${
                   isRecording
                     ? "bg-rose-500 ring-4 ring-rose-200"
                     : "bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
                 } ${!hasPermission ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
               >
-                <Camera className="h-6 w-6 text-white" />
+                <Camera className="h-7 w-7 text-white" />
               </button>
-              <span className="text-[11px] font-medium text-muted-foreground select-none">
+              <span className="text-xs font-semibold text-muted-foreground select-none">
                 {isRecording ? "Release to stop" : "Hold to Record"}
               </span>
             </div>
 
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-xs">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-sm font-medium cursor-pointer">
               Done ({capturedCount})
             </Button>
           </div>

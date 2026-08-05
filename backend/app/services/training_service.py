@@ -145,6 +145,23 @@ class TrainingService:
                 return job.copy()
         return self.get_status(project_id)
 
+    def get_under_the_hood_analytics(self, project_id: str) -> dict:
+        with self._lock:
+            if project_id in self._jobs and "under_the_hood" in self._jobs[project_id]:
+                return self._jobs[project_id]["under_the_hood"]
+
+        training_meta_path = self._get_training_meta_path(project_id)
+        if os.path.exists(training_meta_path):
+            try:
+                with open(training_meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                if "under_the_hood" in meta:
+                    return meta["under_the_hood"]
+            except Exception:
+                pass
+
+        raise HTTPException(status_code=404, detail="Under the Hood analytics not available for this project.")
+
     def start_training(self, project_id: str, epochs: int = 50, batch_size: int = 16, learning_rate: float = 0.001) -> Dict[str, Any]:
         # Validate dataset first
         validation_info = self.validate_dataset(project_id)
@@ -198,10 +215,11 @@ class TrainingService:
 
             for label_idx, cls_info in enumerate(enabled_classes):
                 c_dir = cls_info["directory"]
-                for f in sorted(os.listdir(c_dir)):
-                    if os.path.splitext(f)[1].lower() in allowed_exts:
-                        image_paths.append(os.path.join(c_dir, f))
-                        labels.append(label_idx)
+                if os.path.exists(c_dir):
+                    for f in sorted(os.listdir(c_dir)):
+                        if os.path.splitext(f)[1].lower() in allowed_exts:
+                            image_paths.append(os.path.join(c_dir, f))
+                            labels.append(label_idx)
 
             X_data = []
             y_data = []
@@ -339,6 +357,59 @@ class TrainingService:
                 "formatted_duration": formatted_dur
             }
 
+            # Compute Under the Hood analytics (Validation predictions, confusion matrix, epoch histories)
+            val_preds = model.predict(X_val)
+            val_pred_labels = np.argmax(val_preds, axis=1)
+
+            num_classes = len(enabled_classes)
+            class_names = [c["name"] for c in enabled_classes]
+            conf_matrix = [[0] * num_classes for _ in range(num_classes)]
+
+            for true_lbl, pred_lbl in zip(y_val, val_pred_labels):
+                conf_matrix[int(true_lbl)][int(pred_lbl)] += 1
+
+            accuracy_per_class = []
+            for idx, cname in enumerate(class_names):
+                total_samples = sum(conf_matrix[idx])
+                correct_samples = conf_matrix[idx][idx]
+                acc = round(correct_samples / total_samples, 2) if total_samples > 0 else 1.00
+                accuracy_per_class.append({
+                    "class_name": cname,
+                    "accuracy": acc,
+                    "sample_count": total_samples
+                })
+
+            acc_list = history.history.get("accuracy", [])
+            val_acc_list = history.history.get("val_accuracy", [])
+            loss_list = history.history.get("loss", [])
+            val_loss_list = history.history.get("val_loss", [])
+
+            accuracy_per_epoch = []
+            loss_per_epoch = []
+
+            for ep_idx in range(len(acc_list)):
+                accuracy_per_epoch.append({
+                    "epoch": ep_idx + 1,
+                    "accuracy": round(float(acc_list[ep_idx]), 4),
+                    "val_accuracy": round(float(val_acc_list[ep_idx]), 4) if ep_idx < len(val_acc_list) else round(float(acc_list[ep_idx]), 4)
+                })
+                loss_per_epoch.append({
+                    "epoch": ep_idx + 1,
+                    "loss": round(float(loss_list[ep_idx]), 4),
+                    "val_loss": round(float(val_loss_list[ep_idx]), 4) if ep_idx < len(val_loss_list) else round(float(loss_list[ep_idx]), 4)
+                })
+
+            under_the_hood = {
+                "epochs": epochs,
+                "accuracy_per_epoch": accuracy_per_epoch,
+                "loss_per_epoch": loss_per_epoch,
+                "accuracy_per_class": accuracy_per_class,
+                "confusion_matrix": {
+                    "classes": class_names,
+                    "matrix": conf_matrix
+                }
+            }
+
             # 7. Save Model & Metadata
             model_dir = self._get_model_dir(project_id)
             model_save_path = os.path.join(model_dir, "model.keras")
@@ -349,6 +420,7 @@ class TrainingService:
                 "duration_seconds": total_duration,
                 "formatted_duration": formatted_dur,
                 "metrics": metrics,
+                "under_the_hood": under_the_hood,
                 "config": {
                     "epochs": epochs,
                     "batchSize": batch_size,
@@ -370,6 +442,7 @@ class TrainingService:
                     job["elapsed_time"] = total_duration
                     job["formatted_elapsed_time"] = formatted_dur
                     job["metrics"] = metrics
+                    job["under_the_hood"] = under_the_hood
                     job["has_trained_model"] = True
                     job["trained_at"] = training_meta["trained_at"]
 

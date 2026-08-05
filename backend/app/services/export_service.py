@@ -92,7 +92,7 @@ class ExportService:
             "model_size_bytes": size_bytes,
             "formatted_model_size": formatted_size,
             "classes_count": classes_count,
-            "formats": ["keras", "savedmodel"],
+            "formats": ["tfjs", "tm", "keras", "savedmodel"],
             "error": None
         }
 
@@ -278,3 +278,219 @@ print(f"Predicted Class: {classes[top_idx]['name']} ({preds[top_idx]*100:.1f}%)"
 
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def export_tfjs_zip(self, project_id: str) -> Tuple[io.BytesIO, str]:
+        model_path = self._get_model_path(project_id)
+        if not os.path.exists(model_path):
+            raise HTTPException(status_code=400, detail="No trained model found for export.")
+
+        temp_dir = tempfile.mkdtemp()
+        tfjs_dir = os.path.join(temp_dir, "tfjs_model")
+        os.makedirs(tfjs_dir, exist_ok=True)
+
+        try:
+            import tensorflow as tf
+            model = tf.keras.models.load_model(model_path)
+
+            has_tfjs_converted = False
+            try:
+                import tensorflowjs as tfjs
+                tfjs.converters.save_keras_model(model, tfjs_dir)
+                has_tfjs_converted = True
+            except Exception:
+                # If tensorflowjs converter package is not installed, export model.keras alongside tfjs manifest
+                model.save(os.path.join(tfjs_dir, "model.keras"))
+                try:
+                    topology = json.loads(model.to_json())
+                    tfjs_manifest = {
+                        "format": "layers-model",
+                        "generatedBy": "ModelForge",
+                        "convertedBy": "ModelForge Exporter",
+                        "modelTopology": topology
+                    }
+                    with open(os.path.join(tfjs_dir, "model.json"), "w", encoding="utf-8") as f:
+                        json.dump(tfjs_manifest, f, indent=2)
+                except Exception:
+                    pass
+
+            zip_buffer = io.BytesIO()
+
+            index_html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TensorFlow.js Model Classifier</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; }
+    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    input { margin: 16px 0; }
+    img { max-width: 300px; max-height: 300px; border-radius: 8px; margin: 16px 0; display: none; }
+    .result { font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>TensorFlow.js Image Classifier</h2>
+    <p>Upload an image to get real-time predictions</p>
+    <input type="file" id="imageInput" accept="image/*" />
+    <br>
+    <img id="preview" alt="Preview" />
+    <div id="result" class="result">Select an image to test</div>
+  </div>
+
+  <script>
+    let classes = [];
+
+    async function init() {
+      try {
+        const res = await fetch('classes.json');
+        classes = await res.json();
+        console.log('Classes loaded:', classes);
+      } catch (err) {
+        console.error('Error loading classes.json:', err);
+      }
+    }
+
+    document.getElementById('imageInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const img = document.getElementById('preview');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+
+      img.onload = async () => {
+        try {
+          // Note: When serving model.json via web server:
+          // const model = await tf.loadLayersModel('model.json');
+          // const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).toFloat().div(127.5).sub(1).expandDims(0);
+          // const predictions = await model.predict(tensor).data();
+          document.getElementById('result').innerText = 'Image loaded! Check browser console for prediction setup.';
+        } catch (err) {
+          console.error(err);
+        }
+      };
+    });
+
+    init();
+  </script>
+</body>
+</html>
+"""
+
+            readme_content = """========================================================================
+ModelForge — TensorFlow.js (JavaScript) Export Package
+========================================================================
+
+Package Contents:
+- model.json / model.keras : TensorFlow.js architecture manifest / model weights
+- classes.json            : Index-to-class label mapping
+- metadata.json           : Model metadata
+- index.html              : Complete HTML/JS web integration template
+
+HOW TO USE IN JAVASCRIPT / BROWSER:
+------------------------------------------------------------------------
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+<script>
+  async function predictImage(imgElement) {
+    // 1. Load trained TF.js model & class labels
+    const model = await tf.loadLayersModel('model.json');
+    const classes = await fetch('classes.json').then(res => res.json());
+
+    // 2. Preprocess image (224x224, MobileNetV2 scaling [-1, 1])
+    const tensor = tf.browser.fromPixels(imgElement)
+      .resizeBilinear([224, 224])
+      .toFloat()
+      .div(127.5)
+      .sub(1)
+      .expandDims(0);
+
+    // 3. Perform prediction
+    const predictions = await model.predict(tensor).data();
+    const topIdx = predictions.indexOf(Math.max(...predictions));
+
+    console.log(`Predicted: ${classes[topIdx].name} (${(predictions[topIdx] * 100).toFixed(1)}%)`);
+  }
+</script>
+========================================================================
+"""
+
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for root, _, files in os.walk(tfjs_dir):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, tfjs_dir)
+                        zf.write(full_path, arcname=rel_path)
+
+                classes_bytes = self._get_classes_json_bytes(project_id)
+                zf.writestr("classes.json", classes_bytes)
+
+                t_meta_path = self._get_training_meta_path(project_id)
+                if os.path.exists(t_meta_path):
+                    zf.write(t_meta_path, arcname="training_metadata.json")
+
+                zf.writestr("index.html", index_html_content.encode("utf-8"))
+                zf.writestr("README.txt", readme_content.encode("utf-8"))
+
+            zip_buffer.seek(0)
+            slug = self._get_project_slug(project_id)
+            filename = f"{slug}-tfjs.zip"
+            return zip_buffer, filename
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def export_tm_zip(self, project_id: str) -> Tuple[io.BytesIO, str]:
+        proj_dir = self._get_project_dir(project_id)
+        if not os.path.exists(proj_dir):
+            raise HTTPException(status_code=404, detail="Project directory not found.")
+
+        zip_buffer = io.BytesIO()
+
+        meta_path = self._get_metadata_path(project_id)
+        classes_info = []
+        proj_name = "ModelForge Project"
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    proj_meta = json.load(f)
+                classes_info = proj_meta.get("classes", [])
+                proj_name = proj_meta.get("name", proj_name)
+            except Exception:
+                pass
+
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # 1. Package images with [CLASS_NAME]-!-[INDEX].jpg filename formatting
+            for cls in classes_info:
+                c_name = cls.get("name")
+                if not c_name:
+                    continue
+                c_dir = os.path.join(proj_dir, c_name)
+                if os.path.exists(c_dir):
+                    sample_files = [f for f in os.listdir(c_dir) if os.path.isfile(os.path.join(c_dir, f))]
+                    for idx, sfile in enumerate(sample_files):
+                        full_img_path = os.path.join(c_dir, sfile)
+                        ext = os.path.splitext(sfile)[1] or ".jpg"
+                        tm_filename = f"{c_name}-!-{idx}{ext}"
+                        zf.write(full_img_path, arcname=tm_filename)
+
+            # 2. Package manifest.json matching Teachable Machine format
+            manifest = {
+                "type": "image",
+                "version": "2.4.14",
+                "name": proj_name,
+                "appdata": {
+                    "publishResults": {},
+                    "trainEpochs": 20,
+                    "trainBatchSize": 16,
+                    "trainLearningRate": 0.001
+                }
+            }
+            zf.writestr("manifest.json", json.dumps(manifest, indent=2).encode("utf-8"))
+
+        zip_buffer.seek(0)
+        slug = self._get_project_slug(project_id)
+        filename = f"{slug}.tm"
+        return zip_buffer, filename

@@ -3,8 +3,10 @@ import shutil
 import json
 import uuid
 import base64
+import zipfile
+import io
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from fastapi import UploadFile, HTTPException
 
 CLASS_COLORS = [
@@ -207,23 +209,18 @@ class DatasetService:
         self._save_metadata(project_id, project)
         return new_class
 
-    def update_class(self, class_id: str, name: Optional[str] = None, disabled: Optional[bool] = None) -> dict:
-        target_project_id = None
-        target_class = None
-        project = None
-
+    def _find_class_and_project(self, class_id: str) -> Tuple[Optional[str], Optional[dict], Optional[dict]]:
+        clean_target = class_id.strip()
         for proj_id in os.listdir(self.uploads_dir):
             if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
                 p = self.get_project(proj_id)
-                for cls in p["classes"]:
-                    if cls["id"] == class_id:
-                        target_project_id = proj_id
-                        target_class = cls
-                        project = p
-                        break
-                if target_class:
-                    break
+                for cls in p.get("classes", []):
+                    if cls["id"] == clean_target or cls["name"].lower() == clean_target.lower():
+                        return proj_id, cls, p
+        return None, None, None
 
+    def update_class(self, class_id: str, name: Optional[str] = None, disabled: Optional[bool] = None) -> dict:
+        target_project_id, target_class, project = self._find_class_and_project(class_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -256,7 +253,7 @@ class DatasetService:
 
     def get_project_stats(self, project_id: str) -> dict:
         project = self.get_project(project_id)
-        total_images = sum(cls.get("imageCount", len(cls.get("images", []))) for cls in project["classes"])
+        total_images = sum(len(cls.get("images", [])) for cls in project["classes"])
 
         training_meta_path = os.path.join(self._get_project_dir(project_id), "training_metadata.json")
         model_path = os.path.join(self._get_project_dir(project_id), "models", "model.keras")
@@ -333,22 +330,7 @@ class DatasetService:
         return {"success": True, "message": f"Project '{project_id}' deleted successfully."}
 
     def delete_class(self, class_id: str) -> dict:
-        target_project_id = None
-        target_class = None
-        project = None
-
-        for proj_id in os.listdir(self.uploads_dir):
-            if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
-                p = self.get_project(proj_id)
-                for cls in p["classes"]:
-                    if cls["id"] == class_id:
-                        target_project_id = proj_id
-                        target_class = cls
-                        project = p
-                        break
-                if target_class:
-                    break
-
+        target_project_id, target_class, project = self._find_class_and_project(class_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -356,27 +338,12 @@ class DatasetService:
         if os.path.exists(class_dir):
             shutil.rmtree(class_dir, ignore_errors=True)
 
-        project["classes"] = [c for c in project["classes"] if c["id"] != class_id]
+        project["classes"] = [c for c in project["classes"] if c["id"] != target_class["id"]]
         self._save_metadata(target_project_id, project)
         return {"success": True, "class_id": class_id}
 
     async def upload_images(self, class_id: str, files: List[UploadFile]) -> List[dict]:
-        target_project_id = None
-        target_class = None
-        project = None
-
-        for proj_id in os.listdir(self.uploads_dir):
-            if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
-                p = self.get_project(proj_id)
-                for cls in p["classes"]:
-                    if cls["id"] == class_id:
-                        target_project_id = proj_id
-                        target_class = cls
-                        project = p
-                        break
-                if target_class:
-                    break
-
+        target_project_id, target_class, project = self._find_class_and_project(class_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -401,7 +368,7 @@ class DatasetService:
                 "id": img_id,
                 "filename": safe_filename,
                 "url": f"/uploads/{target_project_id}/{target_class['name']}/{safe_filename}",
-                "class_id": class_id,
+                "class_id": target_class["id"],
                 "created_at": datetime.now().isoformat()
             }
             target_class["images"].append(item)
@@ -412,22 +379,7 @@ class DatasetService:
         return saved_items
 
     def capture_image(self, class_id: str, base64_data: str) -> dict:
-        target_project_id = None
-        target_class = None
-        project = None
-
-        for proj_id in os.listdir(self.uploads_dir):
-            if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
-                p = self.get_project(proj_id)
-                for cls in p["classes"]:
-                    if cls["id"] == class_id:
-                        target_project_id = proj_id
-                        target_class = cls
-                        project = p
-                        break
-                if target_class:
-                    break
-
+        target_project_id, target_class, project = self._find_class_and_project(class_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -460,7 +412,7 @@ class DatasetService:
             "id": img_id,
             "filename": safe_filename,
             "url": f"/uploads/{target_project_id}/{target_class['name']}/{safe_filename}",
-            "class_id": class_id,
+            "class_id": target_class["id"],
             "created_at": datetime.now().isoformat()
         }
         target_class["images"].append(item)
@@ -508,22 +460,7 @@ class DatasetService:
         return {"success": True, "image_id": image_id}
 
     def clear_class_images(self, class_id: str) -> dict:
-        target_project_id = None
-        target_class = None
-        project = None
-
-        for proj_id in os.listdir(self.uploads_dir):
-            if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
-                p = self.get_project(proj_id)
-                for cls in p["classes"]:
-                    if cls["id"] == class_id:
-                        target_project_id = proj_id
-                        target_class = cls
-                        project = p
-                        break
-                if target_class:
-                    break
-
+        target_project_id, target_class, project = self._find_class_and_project(class_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -544,4 +481,202 @@ class DatasetService:
         self._save_metadata(target_project_id, project)
 
         return {"success": True, "class_id": class_id, "deleted_count": deleted_count}
+
+    def _parse_image_bytes(self, img_item) -> Optional[Tuple[bytes, str]]:
+        if isinstance(img_item, bytes):
+            return img_item, ".jpg"
+        ext = ".jpg"
+        b64_str = None
+        if isinstance(img_item, str):
+            b64_str = img_item
+        elif isinstance(img_item, dict):
+            b64_str = img_item.get("base64") or img_item.get("data")
+        if b64_str and isinstance(b64_str, str):
+            if "," in b64_str:
+                header, encoded = b64_str.split(",", 1)
+                if "png" in header:
+                    ext = ".png"
+                elif "webp" in header:
+                    ext = ".webp"
+            else:
+                encoded = b64_str
+            encoded = encoded.strip()
+            missing_padding = len(encoded) % 4
+            if missing_padding:
+                encoded += "=" * (4 - missing_padding)
+            try:
+                decoded = base64.b64decode(encoded)
+                if decoded:
+                    return decoded, ext
+            except Exception:
+                pass
+        return None
+
+    def import_tm_project(self, project_id: str, file_bytes: bytes, filename: str) -> dict:
+        project_dir = os.path.join(self.uploads_dir, project_id)
+        if os.path.exists(project_dir):
+            shutil.rmtree(project_dir, ignore_errors=True)
+        os.makedirs(project_dir, exist_ok=True)
+
+        project_name = os.path.splitext(filename)[0] or "Imported Project"
+        classes_meta_map = {}
+        imported_images = {}
+        model_keras_bytes = None
+        training_meta_bytes = None
+
+        is_zip = False
+        try:
+            if file_bytes.startswith(b"PK\x03\x04"):
+                is_zip = True
+        except Exception:
+            pass
+
+        if is_zip:
+            try:
+                with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zf:
+                    # 1. Read metadata.json or json manifest if present for project name & class colors/disabled state
+                    for member in zf.infolist():
+                        if member.is_dir():
+                            continue
+                        m_name = os.path.basename(member.filename).lower()
+                        if m_name in ("metadata.json", "project.json"):
+                            try:
+                                raw_data = zf.read(member).decode("utf-8", errors="ignore")
+                                data = json.loads(raw_data)
+                                if isinstance(data, dict):
+                                    if data.get("name"):
+                                        project_name = data.get("name")
+                                    elif data.get("manifest", {}).get("name"):
+                                        project_name = data.get("manifest", {}).get("name")
+
+                                    cls_list = data.get("classes") or data.get("categories") or []
+                                    for idx, c in enumerate(cls_list):
+                                        if isinstance(c, dict):
+                                            cname = c.get("name") or c.get("label")
+                                            if cname:
+                                                classes_meta_map[cname] = {
+                                                    "color": c.get("color"),
+                                                    "disabled": c.get("disabled", False)
+                                                }
+                            except Exception:
+                                pass
+                        elif m_name == "model.keras":
+                            try:
+                                model_keras_bytes = zf.read(member)
+                            except Exception:
+                                pass
+                        elif m_name == "training_metadata.json":
+                            try:
+                                training_meta_bytes = zf.read(member)
+                            except Exception:
+                                pass
+
+                    # 2. Extract image samples directly from archive structure
+                    for member in zf.infolist():
+                        if member.is_dir():
+                            continue
+                        fname = member.filename
+                        ext = os.path.splitext(fname)[1].lower()
+                        if ext in ALLOWED_EXTENSIONS:
+                            base_name = os.path.basename(fname)
+                            class_name = "Uncategorized"
+                            if "-!-" in base_name:
+                                class_name = base_name.split("-!-")[0].strip()
+                            else:
+                                parts = [p for p in fname.split("/") if p]
+                                if len(parts) >= 2:
+                                    class_name = parts[-2].strip()
+
+                            img_data = zf.read(member)
+                            if img_data:
+                                imported_images.setdefault(class_name, []).append((img_data, ext))
+
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to extract zip archive: {str(e)}")
+        else:
+            # Handle single JSON format file
+            raw_str = file_bytes.decode("utf-8", errors="ignore")
+            try:
+                data = json.loads(raw_str)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid .tm file format (must be JSON or ZIP): {str(e)}")
+
+            if isinstance(data, dict):
+                project_name = data.get("name") or data.get("manifest", {}).get("name") or project_name
+                cls_list = data.get("classes") or data.get("categories") or []
+                for idx, c in enumerate(cls_list):
+                    if isinstance(c, dict):
+                        cname = c.get("name") or c.get("label") or f"Class {idx+1}"
+                        classes_meta_map[cname] = {"color": c.get("color"), "disabled": c.get("disabled", False)}
+                        raw_imgs = c.get("images") or c.get("samples") or c.get("data") or []
+                        for img_item in raw_imgs:
+                            parsed = self._parse_image_bytes(img_item)
+                            if parsed:
+                                imported_images.setdefault(cname, []).append(parsed)
+
+        # Fallback if empty archive
+        all_class_names = list(dict.fromkeys(list(classes_meta_map.keys()) + list(imported_images.keys())))
+        if not all_class_names:
+            all_class_names = ["Class 1", "Class 2"]
+
+        project_classes = []
+        for idx, c_name in enumerate(all_class_names):
+            meta_info = classes_meta_map.get(c_name, {})
+            color = meta_info.get("color") or CLASS_COLORS[idx % len(CLASS_COLORS)]
+            disabled = meta_info.get("disabled", False)
+            class_id = f"class-{uuid.uuid4().hex[:6]}"
+            class_dir = os.path.join(project_dir, c_name)
+            os.makedirs(class_dir, exist_ok=True)
+
+            images_meta = []
+            samples = imported_images.get(c_name, [])
+            for s_idx, (img_bytes, ext) in enumerate(samples):
+                img_id = f"img-{uuid.uuid4().hex[:8]}"
+                safe_filename = f"{img_id}{ext}"
+                file_path = os.path.join(class_dir, safe_filename)
+                with open(file_path, "wb") as f:
+                    f.write(img_bytes)
+
+                images_meta.append({
+                    "id": img_id,
+                    "filename": safe_filename,
+                    "url": f"/uploads/{project_id}/{c_name}/{safe_filename}",
+                    "class_id": class_id,
+                    "created_at": datetime.now().isoformat()
+                })
+
+            project_classes.append({
+                "id": class_id,
+                "name": c_name,
+                "color": color,
+                "disabled": disabled,
+                "imageCount": len(images_meta),
+                "images": images_meta
+            })
+
+        project_data = {
+            "id": project_id,
+            "name": project_name,
+            "type": "image",
+            "description": f"Imported from {filename}",
+            "created_at": datetime.now().isoformat(),
+            "classes": project_classes
+        }
+
+        self._save_metadata(project_id, project_data)
+
+        # Ensure imported .tm dataset starts fresh without a pre-existing trained model
+        models_dir = os.path.join(project_dir, "models")
+        if os.path.exists(models_dir):
+            shutil.rmtree(models_dir, ignore_errors=True)
+
+        t_meta_file = os.path.join(project_dir, "training_metadata.json")
+        if os.path.exists(t_meta_file):
+            try:
+                os.remove(t_meta_file)
+            except Exception:
+                pass
+
+        return self.get_project(project_id)
+
 

@@ -151,13 +151,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-size: 17.5px;
+    @apply font-sans;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  }
-  html {
-    @apply font-sans;
-    scroll-behavior: smooth;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 }
 
@@ -166,13 +170,13 @@
   background-color: var(--color-signal-violet);
   color: #ffffff;
   font-family: 'Inter', sans-serif;
-  font-weight: 400;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 16.5px;
   border-radius: var(--radius-buttons);
-  padding: 10px 20px;
+  padding: 11px 22px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   transition: background-color 0.2s ease, transform 0.15s ease, opacity 0.2s ease;
   border: none;
   cursor: pointer;
@@ -188,13 +192,13 @@
   background-color: transparent;
   color: #000000;
   font-family: 'Inter', sans-serif;
-  font-weight: 400;
-  font-size: 15px;
+  font-weight: 500;
+  font-size: 16.5px;
   border-radius: var(--radius-buttons);
-  padding: 10px 20px;
+  padding: 11px 22px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid #a6a6a6;
   transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
   cursor: pointer;
@@ -210,9 +214,10 @@
 .btn-cta {
   background-color: var(--color-signal-violet);
   color: #ffffff;
-  font-weight: 400;
+  font-weight: 500;
+  font-size: 16.5px;
   border-radius: 9999px;
-  padding: 0.625rem 1.5rem;
+  padding: 0.7rem 1.6rem;
   transition: background-color 0.2s ease, transform 0.15s ease;
 }
 .btn-cta:hover {
@@ -223,9 +228,10 @@
 .btn-purple {
   background-color: var(--color-signal-violet);
   color: #ffffff;
-  font-weight: 400;
+  font-weight: 500;
+  font-size: 16.5px;
   border-radius: 9999px;
-  padding: 0.625rem 1.5rem;
+  padding: 0.7rem 1.6rem;
   transition: background-color 0.2s ease, transform 0.15s ease;
 }
 .btn-purple:hover {

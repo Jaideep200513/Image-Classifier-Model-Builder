@@ -49,6 +49,15 @@ def test_full_training_flow():
         assert "train_accuracy" in final_status["metrics"]
         assert "val_accuracy" in final_status["metrics"]
 
+        # Check under the hood analytics
+        uth = ts.get_under_the_hood_analytics(proj_id)
+        assert uth["epochs"] == 2
+        assert len(uth["accuracy_per_epoch"]) == 2
+        assert len(uth["loss_per_epoch"]) == 2
+        assert len(uth["accuracy_per_class"]) == 2
+        assert len(uth["confusion_matrix"]["classes"]) == 2
+        assert len(uth["confusion_matrix"]["matrix"]) == 2
+
         # Check saved model file
         model_file = os.path.join(tmp_dir, proj_id, "models", "model.keras")
         assert os.path.exists(model_file), "model.keras file was not created"

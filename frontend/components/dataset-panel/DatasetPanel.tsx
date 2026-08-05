@@ -39,8 +39,8 @@ export default function DatasetPanel({
           style={{ borderColor: "#dde2f5" }}
         >
           <Layers className="h-10 w-10 text-muted-foreground/60 mb-2" />
-          <p className="text-sm font-bold text-foreground">No classes created yet</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-4">
+          <p className="text-base font-bold text-foreground">No classes created yet</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
             Click the button below to add your first dataset class.
           </p>
         </motion.div>
@@ -71,10 +71,10 @@ export default function DatasetPanel({
         whileTap={{ scale: 0.98 }}
         onClick={onAddClass}
         id="add-class-btn"
-        className="w-full rounded-2xl border-2 border-dashed border-border/70 bg-transparent py-4 text-sm font-medium text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary flex items-center justify-center gap-2"
+        className="w-full rounded-2xl border-2 border-dashed border-border/70 bg-transparent py-4 text-base font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary flex items-center justify-center gap-2 cursor-pointer"
       >
         <motion.div whileHover={{ rotate: 90 }} transition={{ duration: 0.18 }}>
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5" />
         </motion.div>
         Add a class
       </motion.button>

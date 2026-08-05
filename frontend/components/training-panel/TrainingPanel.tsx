@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Cpu, Play, Settings2, CheckCircle2, AlertCircle, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { Cpu, Play, Settings2, CheckCircle2, AlertCircle, Loader2, RotateCcw, XCircle, ArrowLeftRight } from "lucide-react";
 import { motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +10,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TrainingConfig, ImageClass } from "@/types";
 import { useTraining } from "@/hooks/useTraining";
+import UnderTheHoodModal from "./UnderTheHoodModal";
 
 const DEFAULT_CONFIG: TrainingConfig = { epochs: 50, batchSize: 16, learningRate: 0.001 };
 
@@ -31,6 +32,7 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
     learningRate: "0.001",
   });
   const [accordionValue, setAccordionValue] = useState<string[]>([]);
+  const [showUnderTheHoodModal, setShowUnderTheHoodModal] = useState(false);
 
   const {
     status,
@@ -108,12 +110,12 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
       {/* Header */}
       <div className="border-b px-4 py-3 flex items-center justify-between" style={{ borderColor: "#e2e5f0" }}>
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: "#dde2f5" }}>
-            <Cpu className="h-3.5 w-3.5" style={{ color: "#3d0099" }} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#dde2f5" }}>
+            <Cpu className="h-4 w-4" style={{ color: "#3d0099" }} />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground leading-none">Training</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Configure &amp; run</p>
+            <p className="text-base font-bold text-foreground leading-none">Training</p>
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">Configure &amp; run</p>
           </div>
         </div>
 
@@ -122,11 +124,11 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
           <button
             onClick={cancelTraining}
             disabled={isCancelling}
-            className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+            className="text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
             id="cancel-training-btn"
             title="Cancel active model training"
           >
-            <XCircle className="h-3.5 w-3.5" />
+            <XCircle className="h-4 w-4" />
             {isCancelling ? "Cancelling..." : "Cancel"}
           </button>
         )}
@@ -136,7 +138,7 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
       <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
         {/* Validation Status Box */}
         <div
-          className={`rounded-xl border p-3 text-xs leading-relaxed ${
+          className={`rounded-xl border p-3.5 text-xs leading-relaxed ${
             isValidDataset
               ? "bg-emerald-50/80 border-emerald-200 text-emerald-800"
               : "bg-amber-50/80 border-amber-200 text-amber-900"
@@ -149,21 +151,21 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             )}
             <div>
-              <p className="font-semibold">
+              <p className="font-bold text-sm">
                 {isValidDataset ? "Dataset Requirement Met" : "Dataset Validation"}
               </p>
               {!hasMinClasses ? (
-                <p className="mt-0.5 text-[11px] opacity-90">
+                <p className="mt-0.5 text-xs font-medium opacity-90">
                   Requires at least 2 enabled classes (currently {enabledClasses.length}).
                 </p>
               ) : !allEnabledHaveEnoughImages ? (
-                <p className="mt-0.5 text-[11px] opacity-90">
+                <p className="mt-0.5 text-xs font-medium opacity-90">
                   {invalidClasses.length === 1
                     ? `Class "${invalidClasses[0].name}" needs at least 10 images (currently has ${invalidClasses[0].count}).`
                     : `Each enabled class requires at least 10 images.`}
                 </p>
               ) : (
-                <p className="mt-0.5 text-[11px] opacity-90">
+                <p className="mt-0.5 text-xs font-medium opacity-90">
                   Dataset is valid! Ready for MobileNetV2 transfer learning.
                 </p>
               )}
@@ -297,20 +299,41 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
                     />
                   </div>
                 ))}
-                <button
-                  className="w-full text-xs py-1.5 rounded-lg transition-colors hover:bg-[#eef0f8] cursor-pointer"
-                  style={{ color: "#5a5a7a" }}
-                  onClick={handleResetDefaults}
-                  disabled={isTraining}
-                  id="reset-config-btn"
-                >
-                  Reset to Defaults
-                </button>
+                <div className="pt-1 flex flex-col gap-2">
+                  <button
+                    className="w-full text-xs py-1.5 rounded-lg transition-colors hover:bg-[#eef0f8] cursor-pointer"
+                    style={{ color: "#5a5a7a" }}
+                    onClick={handleResetDefaults}
+                    disabled={isTraining}
+                    id="reset-config-btn"
+                  >
+                    Reset to Defaults
+                  </button>
+
+                  <button
+                    onClick={() => setShowUnderTheHoodModal(true)}
+                    disabled={(!hasTrainedModel && status !== "completed") || isTraining}
+                    className={`w-full flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl border transition-all font-medium ${
+                      (hasTrainedModel || status === "completed") && !isTraining
+                        ? "bg-purple-50/80 text-purple-700 border-purple-200 hover:bg-purple-100/80 shadow-2xs cursor-pointer"
+                        : "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+                    }`}
+                    id="under-the-hood-btn"
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    Under the Hood
+                  </button>
+                </div>
               </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
       </div>
+
+      <UnderTheHoodModal
+        isOpen={showUnderTheHoodModal}
+        onClose={() => setShowUnderTheHoodModal(false)}
+      />
     </motion.div>
   );
 }

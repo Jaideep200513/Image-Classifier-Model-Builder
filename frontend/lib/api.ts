@@ -47,6 +47,15 @@ export const api = {
       method: "POST",
     }),
 
+  importTmProject: (projectId: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<Project>(`/projects/${projectId}/import-tm`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+
 
   // Classes
   addClass: (projectId: string, name: string) =>
@@ -111,6 +120,9 @@ export const api = {
       method: "POST",
     }),
 
+  getUnderTheHood: (projectId: string) =>
+    request<import("@/types").UnderTheHoodAnalytics>(`/projects/${projectId}/train/under-the-hood`),
+
   // Inference / Testing
   getModelStatus: (projectId: string) =>
     request<import("@/types").ModelStatusResponse>(`/projects/${projectId}/model-status`),
@@ -160,5 +172,11 @@ export const api = {
 
   getExportSavedModelUrl: (projectId: string) =>
     `${API_BASE}/projects/${projectId}/export/savedmodel`,
+
+  getExportTfjsUrl: (projectId: string) =>
+    `${API_BASE}/projects/${projectId}/export/tfjs`,
+
+  getExportTmUrl: (projectId: string) =>
+    `${API_BASE}/projects/${projectId}/export/tm`,
 };
 

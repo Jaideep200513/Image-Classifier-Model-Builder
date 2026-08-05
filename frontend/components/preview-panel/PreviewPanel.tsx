@@ -37,6 +37,26 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
     clearPrediction,
   } = useInference();
 
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Listen for webcam modal open/close events to yield camera stream
+  useEffect(() => {
+    const handleModalOpen = () => stopCamera();
+    const handleModalClose = () => {
+      if (inputOn && inputSource === "webcam" && hasModel) {
+        startCamera();
+      }
+    };
+
+    window.addEventListener("webcam-modal-open", handleModalOpen);
+    window.addEventListener("webcam-modal-close", handleModalClose);
+
+    return () => {
+      window.removeEventListener("webcam-modal-open", handleModalOpen);
+      window.removeEventListener("webcam-modal-close", handleModalClose);
+    };
+  }, [inputOn, inputSource, hasModel]);
+
   // Manage webcam stream when inputOn and webcam mode change
   useEffect(() => {
     if (inputOn && inputSource === "webcam" && hasModel) {
@@ -51,18 +71,36 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
 
   async function startCamera() {
     try {
+      setCameraError(null);
       stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-      });
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+        });
+      } catch (err: any) {
+        // Fallback to basic video constraint if camera is busy or overconstrained
+        if (err.name === "NotReadableError" || err.name === "OverconstrainedError") {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } else {
+          throw err;
+        }
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
       setCameraActive(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera access error:", err);
       setCameraActive(false);
+      if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setCameraError("Camera is in use by another tab or modal.");
+      } else {
+        setCameraError("Camera permission denied or unavailable.");
+      }
     }
   }
 
@@ -145,10 +183,10 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
       {/* ── Header ── */}
       <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: "#dde2f5" }}>
-            <Eye className="h-3.5 w-3.5" style={{ color: "#3d0099" }} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: "#dde2f5" }}>
+            <Eye className="h-4 w-4" style={{ color: "#3d0099" }} />
           </div>
-          <span className="text-sm font-bold" style={{ color: "#1a1a2e" }}>Preview &amp; Test</span>
+          <span className="text-base font-bold" style={{ color: "#1a1a2e" }}>Preview &amp; Test</span>
         </div>
       </div>
 
@@ -157,7 +195,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
 
         {/* Model Availability Alert */}
         <div
-          className={`rounded-xl border p-2.5 text-xs leading-relaxed transition-colors ${
+          className={`rounded-xl border p-3 text-xs leading-relaxed transition-colors ${
             hasModel
               ? "bg-emerald-50/80 border-emerald-200 text-emerald-800"
               : "bg-amber-50/80 border-amber-200 text-amber-900"
@@ -170,10 +208,10 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
             )}
             <div className="flex-1">
-              <p className="font-semibold text-[11px]">
+              <p className="font-bold text-xs">
                 {hasModel ? "Trained Model Ready" : "No Model Available"}
               </p>
-              <p className="text-[10px] opacity-80 mt-0.5">
+              <p className="text-xs opacity-90 mt-0.5">
                 {hasModel
                   ? "Test predictions live with webcam or upload."
                   : "No trained model available. Please train a model first."}
@@ -184,7 +222,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
 
         {/* Input row — "Input [toggle] ON | Webcam ∨" */}
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-medium text-muted-foreground flex-shrink-0">Input</span>
+          <span className="text-sm font-semibold text-muted-foreground flex-shrink-0">Input</span>
 
           {/* On/Off toggle */}
           <button
@@ -272,8 +310,19 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
                 className="w-full h-full object-cover"
               />
               {!cameraActive && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 text-white text-xs">
-                  Starting camera...
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-white text-xs p-4 text-center space-y-2">
+                  <AlertCircle className="h-6 w-6 text-amber-400 mx-auto" />
+                  <p className="font-semibold text-slate-200">
+                    {cameraError || "Starting camera..."}
+                  </p>
+                  {cameraError && (
+                    <button
+                      onClick={() => startCamera()}
+                      className="px-3 py-1 text-[11px] font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors cursor-pointer"
+                    >
+                      Retry Camera
+                    </button>
+                  )}
                 </div>
               )}
             </div>

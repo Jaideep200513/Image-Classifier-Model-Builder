@@ -13,6 +13,7 @@ const NAV_LINKS = [
 export default function Navbar() {
   const pathname = usePathname();
   const isWorkspace = pathname === "/workspace";
+  const isNewProject = pathname === "/new-project";
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -59,8 +60,8 @@ export default function Navbar() {
             <span
               style={{
                 fontFamily: "'Inter', sans-serif",
-                fontWeight: 400,
-                fontSize: "15px",
+                fontWeight: 700,
+                fontSize: "18px",
                 color: "#000000",
                 letterSpacing: "-0.017em",
               }}
@@ -69,8 +70,8 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Center nav links (hidden on workspace) */}
-          {!isWorkspace && (
+          {/* Center nav links (hidden on workspace & new-project) */}
+          {!isWorkspace && !isNewProject && (
             <nav
               className="hidden items-center gap-1 md:flex"
               aria-label="Main navigation"
@@ -81,10 +82,10 @@ export default function Navbar() {
                   href={link.href}
                   style={{
                     fontFamily: "'Inter', sans-serif",
-                    fontSize: "15px",
-                    fontWeight: 400,
+                    fontSize: "16px",
+                    fontWeight: 500,
                     color: "#000000",
-                    padding: "6px 12px",
+                    padding: "6px 14px",
                     borderRadius: "8px",
                     textDecoration: "none",
                     transition: "color 0.2s ease",
@@ -109,17 +110,17 @@ export default function Navbar() {
                 <button
                   className="btn-violet"
                   id="workspace-new-project-btn"
-                  style={{ fontSize: "13px", padding: "8px 16px" }}
+                  style={{ fontSize: "15px", padding: "9px 18px" }}
                 >
                   New Project
                 </button>
               </Link>
-            ) : (
+            ) : isNewProject ? null : (
               <Link href="/new-project">
                 <button
                   className="btn-violet"
                   id="hero-get-started-nav"
-                  style={{ fontSize: "13px", padding: "8px 16px" }}
+                  style={{ fontSize: "15px", padding: "9px 18px" }}
                 >
                   Get Started →
                 </button>

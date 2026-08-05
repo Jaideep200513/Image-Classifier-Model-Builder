@@ -25,3 +25,8 @@ def get_training_status(id: str, service: TrainingService = Depends(get_training
 @router.post("/{id}/train/cancel", response_model=TrainingStatusResponse)
 def cancel_training(id: str, service: TrainingService = Depends(get_training_service)):
     return service.cancel_training(id)
+
+@router.get("/{id}/train/under-the-hood")
+def get_under_the_hood(id: str, service: TrainingService = Depends(get_training_service)):
+    return service.get_under_the_hood_analytics(id)
+

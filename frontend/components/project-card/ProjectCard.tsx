@@ -41,7 +41,7 @@ export default function ProjectCard() {
         }}
       >
         {/* Sample Class Drawings Header */}
-        <div className="grid grid-cols-3 h-36 border-b border-slate-100 overflow-hidden bg-[#f9f8f6]">
+        <div className="grid grid-cols-3 h-32 border-b border-slate-100 overflow-hidden bg-[#f9f8f6]">
           {[
             { name: "Cat", src: "/cat-sample.png", bg: "#f5f2eb" },
             { name: "Dog", src: "/dog-sample.png", bg: "#f9f8f6" },
@@ -49,7 +49,7 @@ export default function ProjectCard() {
           ].map((item, i) => (
             <div
               key={i}
-              className="relative flex items-center justify-center p-3 border-r last:border-r-0 border-slate-200/60 overflow-hidden"
+              className="relative flex items-center justify-center p-2.5 border-r last:border-r-0 border-slate-200/60 overflow-hidden"
               style={{ backgroundColor: item.bg }}
             >
               <img
@@ -65,10 +65,10 @@ export default function ProjectCard() {
         </div>
 
         {/* Card Body with Spotlight */}
-        <SpotlightCard className="rounded-none bg-white p-6" spotlightColor="rgba(95, 121, 255, 0.08)">
-          <div className="mb-4 flex items-center justify-between">
+        <SpotlightCard className="rounded-none bg-white p-5" spotlightColor="rgba(95, 121, 255, 0.08)">
+          <div className="mb-3.5 flex items-center justify-between">
             <div
-              className="flex h-11 w-11 items-center justify-center rounded-2xl"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl"
               style={{ backgroundColor: "#d9defc" }}
             >
               <ImageIcon className="h-5 w-5" style={{ color: "#5f79ff" }} />
@@ -85,10 +85,10 @@ export default function ProjectCard() {
             </span>
           </div>
 
-          <h2 className="mb-2 text-xl font-semibold" style={{ color: "#000000" }}>
+          <h2 className="mb-1.5 text-xl font-semibold" style={{ color: "#000000" }}>
             Image Project
           </h2>
-          <p className="mb-6 text-sm leading-relaxed" style={{ color: "#4d4d4d" }}>
+          <p className="mb-4.5 text-sm leading-relaxed" style={{ color: "#4d4d4d" }}>
             Train a custom image classifier using uploaded datasets or live webcam samples. Supports fast browser preview.
           </p>
 

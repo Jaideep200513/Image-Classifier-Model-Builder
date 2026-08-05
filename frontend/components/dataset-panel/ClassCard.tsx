@@ -111,7 +111,7 @@ export default function ClassCard({
                 onChange={(e) => setDraftName(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onBlur={commitRename}
-                className="h-7 flex-1 text-sm font-semibold"
+                className="h-8 flex-1 text-base font-bold"
                 maxLength={50}
                 id={`rename-input-${imageClass.id}`}
               />
@@ -128,57 +128,57 @@ export default function ClassCard({
               className="flex items-center gap-1.5 min-w-0 group/rename"
               id={`rename-btn-${imageClass.id}`}
             >
-              <span className={cn("text-sm font-semibold truncate", imageClass.disabled ? "text-muted-foreground line-through" : "text-foreground")}>{imageClass.name}</span>
+              <span className={cn("text-base font-bold truncate", imageClass.disabled ? "text-muted-foreground line-through" : "text-foreground")}>{imageClass.name}</span>
               {!imageClass.disabled && (
-                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover/rename:opacity-100 transition-opacity flex-shrink-0" />
+                <Pencil className="h-4 w-4 text-muted-foreground opacity-0 group-hover/rename:opacity-100 transition-opacity flex-shrink-0" />
               )}
             </button>
           )}
 
           {/* Disabled badge */}
           {imageClass.disabled && (
-            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
-              <EyeOff className="h-2.5 w-2.5" /> Disabled
+            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
+              <EyeOff className="h-3 w-3" /> Disabled
             </span>
           )}
         </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none"
+            className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none"
             aria-label={`Options for ${imageClass.name}`}
             id={`menu-btn-${imageClass.id}`}
           >
             <MoreVertical className="h-4 w-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => setIsRenaming(true)} className="gap-2 cursor-pointer text-sm">
-              <Pencil className="h-3.5 w-3.5" /> Rename Class
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setIsRenaming(true)} className="gap-2 cursor-pointer text-sm font-medium">
+              <Pencil className="h-4 w-4" /> Rename Class
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onToggleDisable(imageClass.id, imageClass.disabled)}
-              className="gap-2 cursor-pointer text-sm"
+              className="gap-2 cursor-pointer text-sm font-medium"
             >
               {imageClass.disabled ? (
-                <><Eye className="h-3.5 w-3.5 text-emerald-500" /> Enable Class</>
+                <><Eye className="h-4 w-4 text-emerald-500" /> Enable Class</>
               ) : (
-                <><EyeOff className="h-3.5 w-3.5 text-amber-500" /> Disable Class</>
+                <><EyeOff className="h-4 w-4 text-amber-500" /> Disable Class</>
               )}
             </DropdownMenuItem>
             {images.length > 0 && onClearAllImages && (
               <DropdownMenuItem
                 onClick={() => onClearAllImages(imageClass.id)}
-                className="gap-2 cursor-pointer text-sm text-amber-600 hover:text-amber-700"
+                className="gap-2 cursor-pointer text-sm font-medium text-amber-600 hover:text-amber-700"
               >
-                <Eraser className="h-3.5 w-3.5" /> Clear All Samples
+                <Eraser className="h-4 w-4" /> Clear All Samples
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => canDelete && onDelete(imageClass.id)}
-              className={cn("gap-2 cursor-pointer text-sm", canDelete ? "text-destructive" : "pointer-events-none opacity-40")}
+              className={cn("gap-2 cursor-pointer text-sm font-medium", canDelete ? "text-destructive" : "pointer-events-none opacity-40")}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Delete Class
+              <Trash2 className="h-4 w-4" /> Delete Class
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -191,7 +191,7 @@ export default function ClassCard({
       <div className="flex gap-4 px-5 py-4 items-start">
         {/* Left: label + action buttons */}
         <div className="flex-shrink-0">
-          <p className="mb-2.5 text-xs font-medium text-muted-foreground">Add Image Samples:</p>
+          <p className="mb-2.5 text-sm font-semibold text-muted-foreground">Add Image Samples:</p>
           <div className="flex flex-col gap-2">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Button
@@ -199,10 +199,10 @@ export default function ClassCard({
                 size="sm"
                 onClick={() => setShowWebcam(true)}
                 disabled={imageClass.disabled}
-                className="gap-2 text-xs w-28 justify-start border-border hover:bg-accent hover:border-primary/40 transition-all"
+                className="gap-2 text-sm font-medium h-9 w-32 justify-start border-border hover:bg-accent hover:border-primary/40 transition-all cursor-pointer"
                 id={`webcam-btn-${imageClass.id}`}
               >
-                <Camera className="h-3.5 w-3.5 text-primary" />
+                <Camera className="h-4 w-4 text-primary" />
                 Webcam
               </Button>
             </motion.div>
@@ -212,10 +212,10 @@ export default function ClassCard({
                 size="sm"
                 onClick={() => setShowUpload(true)}
                 disabled={imageClass.disabled}
-                className="gap-2 text-xs w-28 justify-start border-border hover:bg-accent hover:border-primary/40 transition-all"
+                className="gap-2 text-sm font-medium h-9 w-32 justify-start border-border hover:bg-accent hover:border-primary/40 transition-all cursor-pointer"
                 id={`upload-btn-${imageClass.id}`}
               >
-                <Upload className="h-3.5 w-3.5 text-primary" />
+                <Upload className="h-4 w-4 text-primary" />
                 Upload
               </Button>
             </motion.div>
@@ -227,16 +227,16 @@ export default function ClassCard({
           {images.length > 0 ? (
             <>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground font-medium">
+                <p className="text-sm text-muted-foreground font-semibold">
                   {images.length} Image Sample{images.length !== 1 ? "s" : ""}
                 </p>
                 {onClearAllImages && (
                   <button
                     onClick={() => onClearAllImages(imageClass.id)}
-                    className="text-[11px] font-medium text-muted-foreground hover:text-amber-600 flex items-center gap-1 transition-colors"
+                    className="text-xs font-semibold text-muted-foreground hover:text-amber-600 flex items-center gap-1 transition-colors cursor-pointer"
                     title="Delete all samples in this class"
                   >
-                    <Eraser className="h-3 w-3" /> Clear samples
+                    <Eraser className="h-3.5 w-3.5" /> Clear samples
                   </button>
                 )}
               </div>
@@ -250,7 +250,7 @@ export default function ClassCard({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.6 }}
                       transition={{ duration: 0.2 }}
-                      className="group relative h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden border bg-slate-100 cursor-pointer shadow-xs"
+                      className="group relative h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden border bg-slate-100 cursor-pointer shadow-xs"
                       style={{ borderColor: "#dbe0f0" }}
                       onClick={() => setSelectedImageForPreview(img)}
                     >
@@ -266,20 +266,20 @@ export default function ClassCard({
                             e.stopPropagation();
                             setSelectedImageForPreview(img);
                           }}
-                          className="rounded p-1 bg-white/20 text-white hover:bg-white/40 transition-colors"
+                          className="rounded p-1 bg-white/20 text-white hover:bg-white/40 transition-colors cursor-pointer"
                           title="Preview"
                         >
-                          <Maximize2 className="h-3 w-3" />
+                          <Maximize2 className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onDeleteImage(img.id);
                           }}
-                          className="rounded p-1 bg-rose-500/80 text-white hover:bg-rose-600 transition-colors"
+                          className="rounded p-1 bg-rose-500/80 text-white hover:bg-rose-600 transition-colors cursor-pointer"
                           title="Delete image"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </motion.div>
@@ -293,7 +293,7 @@ export default function ClassCard({
               className="flex h-20 items-center justify-center rounded-xl border-2 border-dashed transition-colors cursor-pointer hover:border-primary/50"
               style={{ borderColor: "#dde2f5", backgroundColor: "#f4f0ff" }}
             >
-              <p className="text-xs font-medium" style={{ color: "#5a5a7a" }}>
+              <p className="text-sm font-semibold" style={{ color: "#5a5a7a" }}>
                 No samples yet — Drop files here or use webcam
               </p>
             </div>
