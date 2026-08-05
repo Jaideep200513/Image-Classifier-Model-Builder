@@ -1,0 +1,62 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Oracle Cloud VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to Oracle Cloud
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.OCI_HOST }}
+          username: ${{ secrets.OCI_USERNAME }}
+          key: ${{ secrets.OCI_SSH_KEY }}
+          port: ${{ secrets.OCI_PORT || 22 }}
+          script: |
+            echo "🚀 Starting deployment on Oracle Cloud..."
+            
+            # Target project directory on OCI VM
+            TARGET_DIR="$HOME/image-model-builder"
+            if [ ! -d "$TARGET_DIR" ]; then
+              if [ -d "/var/www/image-model-builder" ]; then
+                TARGET_DIR="/var/www/image-model-builder"
+              else
+                TARGET_DIR="$HOME/Image-Classifier-Model-Builder"
+              fi
+            fi
+            
+            echo "📁 Deploying in $TARGET_DIR"
+            cd "$TARGET_DIR" || exit 1
+            
+            # Reset working tree and pull latest main
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Rebuild and restart containers via Docker Compose or PM2
+            if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+              echo "🐳 Rebuilding Docker Compose containers..."
+              docker compose down
+              docker compose up -d --build
+            elif command -v pm2 &> /dev/null; then
+              echo "📦 Restarting PM2 processes..."
+              if [ -d "backend" ]; then
+                cd backend && source venv/bin/activate 2>/dev/null || true
+                pip install -r requirements.txt 2>/dev/null || true
+                cd ..
+              fi
+              if [ -d "frontend" ]; then
+                cd frontend && npm install && npm run build && cd ..
+              fi
+              pm2 restart all
+            fi
+            
+            echo "✅ Deployment completed successfully!"
