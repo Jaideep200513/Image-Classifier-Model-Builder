@@ -24,39 +24,48 @@ jobs:
           script: |
             echo "🚀 Starting deployment on Oracle Cloud..."
             
-            # Target project directory on OCI VM
-            TARGET_DIR="$HOME/image-model-builder"
-            if [ ! -d "$TARGET_DIR" ]; then
-              if [ -d "/var/www/image-model-builder" ]; then
-                TARGET_DIR="/var/www/image-model-builder"
-              else
-                TARGET_DIR="$HOME/Image-Classifier-Model-Builder"
-              fi
+            # Find git repository directory on VM
+            GIT_DIR=$(find "$HOME" /var/www -maxdepth 3 -name ".git" -type d 2>/dev/null | head -n 1)
+            if [ -n "$GIT_DIR" ]; then
+              TARGET_DIR=$(dirname "$GIT_DIR")
+            else
+              TARGET_DIR="$HOME/image-model-builder"
             fi
             
-            echo "📁 Deploying in $TARGET_DIR"
+            echo "📁 Deploying in: $TARGET_DIR"
             cd "$TARGET_DIR" || exit 1
             
             # Reset working tree and pull latest main
-            git fetch origin main
+            git fetch --all
             git reset --hard origin/main
+            git pull origin main
+            
+            echo "📌 Deployed Commit:"
+            git log -1 --oneline
             
             # Rebuild and restart containers via Docker Compose or PM2
             if command -v docker &> /dev/null && docker compose version &> /dev/null; then
-              echo "🐳 Rebuilding Docker Compose containers..."
-              docker compose down
-              docker compose up -d --build
+              echo "🐳 Force-rebuilding Docker Compose containers..."
+              docker compose down --remove-orphans || true
+              docker compose build --no-cache
+              docker compose up -d --force-recreate
+              docker compose ps
             elif command -v pm2 &> /dev/null; then
               echo "📦 Restarting PM2 processes..."
               if [ -d "backend" ]; then
-                cd backend && source venv/bin/activate 2>/dev/null || true
+                cd backend
+                source venv/bin/activate 2>/dev/null || true
                 pip install -r requirements.txt 2>/dev/null || true
                 cd ..
               fi
               if [ -d "frontend" ]; then
-                cd frontend && npm install && npm run build && cd ..
+                cd frontend
+                rm -rf .next
+                npm install
+                npm run build
+                cd ..
               fi
-              pm2 restart all
+              pm2 restart all || pm2 reload all
             fi
             
             echo "✅ Deployment completed successfully!"
