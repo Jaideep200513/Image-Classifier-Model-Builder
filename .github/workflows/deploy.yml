@@ -9,6 +9,7 @@ jobs:
   deploy:
     name: Deploy to Oracle Cloud VM
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Code
@@ -22,73 +23,25 @@ jobs:
           key: ${{ secrets.OCI_SSH_KEY }}
           port: 22
           script: |
-            echo "🚀 Starting deployment on Oracle Cloud..."
+            echo "🚀 Starting deployment to Oracle Cloud VM..."
             
-            # Load environment PATHs (NVM, Docker, PM2, systemd)
-            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:~/.nvm/versions/node/$(ls ~/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:~/.local/bin:~/.npm-global/bin
-            source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
+            # 1. Navigate to exact project directory on VM
+            cd /home/ubuntu/Image-Classifier-Model-Builder || exit 1
             
-            # Find git repository directory on VM
-            GIT_DIR=$(find "$HOME" /var/www -maxdepth 3 -name ".git" -type d 2>/dev/null | head -n 1)
-            if [ -n "$GIT_DIR" ]; then
-              TARGET_DIR=$(dirname "$GIT_DIR")
-            else
-              TARGET_DIR="$HOME/Image-Classifier-Model-Builder"
-            fi
-            
-            echo "📁 Deploying in: $TARGET_DIR"
-            cd "$TARGET_DIR" || exit 1
-            
-            # Reset working tree and pull latest main
-            git fetch --all
+            # 2. Sync latest code from main branch
+            git fetch origin main
             git reset --hard origin/main
-            git pull origin main
             
             echo "📌 Deployed Commit:"
             git log -1 --oneline
             
-            # Check rebuild mechanism
-            if command -v docker &> /dev/null || command -v docker-compose &> /dev/null; then
-              echo "🐳 Rebuilding with Docker Compose..."
-              if command -v docker-compose &> /dev/null; then
-                docker-compose down --remove-orphans || true
-                docker-compose build --no-cache
-                docker-compose up -d --force-recreate
-                docker-compose ps
-              else
-                docker compose down --remove-orphans || true
-                docker compose build --no-cache
-                docker compose up -d --force-recreate
-                docker compose ps
-              fi
-            elif command -v pm2 &> /dev/null; then
-              echo "📦 Rebuilding with PM2..."
-              if [ -d "backend" ]; then
-                cd backend
-                source venv/bin/activate 2>/dev/null || true
-                pip install -r requirements.txt 2>/dev/null || true
-                cd ..
-              fi
-              if [ -d "frontend" ]; then
-                cd frontend
-                rm -rf .next
-                npm install
-                npm run build
-                cd ..
-              fi
-              pm2 restart all || pm2 reload all
-            else
-              echo "⚡ Rebuilding Frontend & Backend..."
-              if [ -d "frontend" ]; then
-                cd frontend
-                rm -rf .next
-                npm install
-                npm run build
-                cd ..
-              fi
-              if command -v pm2 &> /dev/null; then
-                pm2 restart all || true
-              fi
-            fi
+            # 3. Rebuild and restart Docker Compose containers
+            echo "🐳 Rebuilding and starting Docker Compose stack..."
+            docker compose down --remove-orphans || true
+            docker compose up -d --build
             
-            echo "✅ Deployment completed successfully!"
+            # 4. Print container status
+            echo "📊 Active Container Status:"
+            docker compose ps
+            
+            echo "✅ Deployment to http://140.245.221.99:3000 completed successfully!"
