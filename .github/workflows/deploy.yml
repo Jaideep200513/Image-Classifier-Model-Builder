@@ -20,7 +20,7 @@ jobs:
           host: ${{ secrets.OCI_HOST }}
           username: ${{ secrets.OCI_USERNAME }}
           key: ${{ secrets.OCI_SSH_KEY }}
-          port: ${{ secrets.OCI_PORT || 22 }}
+          port: 22
           script: |
             echo "🚀 Starting deployment on Oracle Cloud..."
             
