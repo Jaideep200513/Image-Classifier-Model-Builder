@@ -37,11 +37,17 @@ jobs:
             
             # 3. Rebuild and restart Docker Compose containers
             echo "🐳 Rebuilding and starting Docker Compose stack..."
-            docker compose down --remove-orphans || true
-            docker compose up -d --build
+            if command -v docker-compose &> /dev/null; then
+              docker-compose down --remove-orphans || true
+              docker-compose up -d --build
+              docker-compose ps
+            else
+              docker compose down --remove-orphans || true
+              docker compose up -d --build
+              docker compose ps
+            fi
             
-            # 4. Print container status
-            echo "📊 Active Container Status:"
-            docker compose ps
+            # 4. Port 80 redirect setup
+            sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 3000 2>/dev/null || true
             
-            echo "✅ Deployment to http://140.245.221.99:3000 completed successfully!"
+            echo "✅ Deployment to http://140.245.221.99 completed successfully!"
