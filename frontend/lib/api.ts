@@ -1,22 +1,32 @@
 import { Project, ImageClass, ImageItem } from "@/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function getApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return "http://localhost:8000";
+}
 
 export function getFullImageUrl(relativeOrAbsoluteUrl: string): string {
   if (!relativeOrAbsoluteUrl) return "";
   if (relativeOrAbsoluteUrl.startsWith("http://") || relativeOrAbsoluteUrl.startsWith("https://") || relativeOrAbsoluteUrl.startsWith("data:")) {
     return relativeOrAbsoluteUrl;
   }
-  return `${API_BASE}${relativeOrAbsoluteUrl.startsWith("/") ? "" : "/"}${relativeOrAbsoluteUrl}`;
+  const apiBase = getApiBase();
+  return `${apiBase}${relativeOrAbsoluteUrl.startsWith("/") ? "" : "/"}${relativeOrAbsoluteUrl}`;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+  const apiBase = getApiBase();
+  const url = `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
   let res: Response;
   try {
     res = await fetch(url, options);
   } catch (err: any) {
-    throw new Error("Backend unavailable. Please ensure FastAPI server is running on http://localhost:8000.");
+    throw new Error(`Backend unavailable. Please ensure FastAPI server is reachable at ${apiBase}.`);
   }
 
   if (!res.ok) {
@@ -168,15 +178,15 @@ export const api = {
     request<import("@/types").ExportInfo>(`/projects/${projectId}/export/info`),
 
   getExportKerasUrl: (projectId: string) =>
-    `${API_BASE}/projects/${projectId}/export/keras`,
+    `${getApiBase()}/projects/${projectId}/export/keras`,
 
   getExportSavedModelUrl: (projectId: string) =>
-    `${API_BASE}/projects/${projectId}/export/savedmodel`,
+    `${getApiBase()}/projects/${projectId}/export/savedmodel`,
 
   getExportTfjsUrl: (projectId: string) =>
-    `${API_BASE}/projects/${projectId}/export/tfjs`,
+    `${getApiBase()}/projects/${projectId}/export/tfjs`,
 
   getExportTmUrl: (projectId: string) =>
-    `${API_BASE}/projects/${projectId}/export/tm`,
+    `${getApiBase()}/projects/${projectId}/export/tm`,
 };
 
