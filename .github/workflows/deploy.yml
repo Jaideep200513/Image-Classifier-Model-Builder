@@ -24,12 +24,16 @@ jobs:
           script: |
             echo "🚀 Starting deployment on Oracle Cloud..."
             
+            # Load environment PATHs (NVM, Docker, PM2, systemd)
+            export PATH=$PATH:/usr/local/bin:/usr/bin:/bin:~/.nvm/versions/node/$(ls ~/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:~/.local/bin:~/.npm-global/bin
+            source ~/.bashrc 2>/dev/null || source ~/.profile 2>/dev/null || true
+            
             # Find git repository directory on VM
             GIT_DIR=$(find "$HOME" /var/www -maxdepth 3 -name ".git" -type d 2>/dev/null | head -n 1)
             if [ -n "$GIT_DIR" ]; then
               TARGET_DIR=$(dirname "$GIT_DIR")
             else
-              TARGET_DIR="$HOME/image-model-builder"
+              TARGET_DIR="$HOME/Image-Classifier-Model-Builder"
             fi
             
             echo "📁 Deploying in: $TARGET_DIR"
@@ -43,15 +47,22 @@ jobs:
             echo "📌 Deployed Commit:"
             git log -1 --oneline
             
-            # Rebuild and restart containers via Docker Compose or PM2
-            if command -v docker &> /dev/null && docker compose version &> /dev/null; then
-              echo "🐳 Force-rebuilding Docker Compose containers..."
-              docker compose down --remove-orphans || true
-              docker compose build --no-cache
-              docker compose up -d --force-recreate
-              docker compose ps
+            # Check rebuild mechanism
+            if command -v docker &> /dev/null || command -v docker-compose &> /dev/null; then
+              echo "🐳 Rebuilding with Docker Compose..."
+              if command -v docker-compose &> /dev/null; then
+                docker-compose down --remove-orphans || true
+                docker-compose build --no-cache
+                docker-compose up -d --force-recreate
+                docker-compose ps
+              else
+                docker compose down --remove-orphans || true
+                docker compose build --no-cache
+                docker compose up -d --force-recreate
+                docker compose ps
+              fi
             elif command -v pm2 &> /dev/null; then
-              echo "📦 Restarting PM2 processes..."
+              echo "📦 Rebuilding with PM2..."
               if [ -d "backend" ]; then
                 cd backend
                 source venv/bin/activate 2>/dev/null || true
@@ -66,6 +77,18 @@ jobs:
                 cd ..
               fi
               pm2 restart all || pm2 reload all
+            else
+              echo "⚡ Rebuilding Frontend & Backend..."
+              if [ -d "frontend" ]; then
+                cd frontend
+                rm -rf .next
+                npm install
+                npm run build
+                cd ..
+              fi
+              if command -v pm2 &> /dev/null; then
+                pm2 restart all || true
+              fi
             fi
             
             echo "✅ Deployment completed successfully!"
