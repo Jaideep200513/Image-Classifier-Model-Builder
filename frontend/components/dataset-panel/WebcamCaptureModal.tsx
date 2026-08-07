@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { Camera, X, RefreshCw, Radio, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ImageItem } from "@/types";
 
 interface WebcamCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
   className: string;
-  onCaptureFrame: (base64Image: string) => Promise<any>;
+  onCaptureFrame: (base64Image: string) => Promise<ImageItem>;
 }
 
 export default function WebcamCaptureModal({
@@ -43,7 +44,7 @@ export default function WebcamCaptureModal({
       // Notify other components (e.g., PreviewPanel) to release camera
       window.dispatchEvent(new CustomEvent("webcam-modal-open"));
 
-      let constraints: MediaStreamConstraints = {
+      const constraints: MediaStreamConstraints = {
         video: deviceId
           ? { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
           : { width: { ideal: 640 }, height: { ideal: 480 } },
@@ -52,9 +53,10 @@ export default function WebcamCaptureModal({
       let mediaStream: MediaStream;
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err as { name?: string };
         // Retry with basic video constraints if overconstrained or busy
-        if (err.name === "NotReadableError" || err.name === "OverconstrainedError") {
+        if (error.name === "NotReadableError" || error.name === "OverconstrainedError") {
           mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
         } else {
           throw err;
@@ -78,9 +80,10 @@ export default function WebcamCaptureModal({
         const settings = activeTrack.getSettings();
         setCurrentDeviceId(settings.deviceId || null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { name?: string };
       setHasPermission(false);
-      if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+      if (error.name === "NotReadableError" || error.name === "TrackStartError") {
         setCameraError("Camera is currently in use by another application or tab.");
         toast.error("Camera in use by another application.");
       } else {
@@ -88,21 +91,9 @@ export default function WebcamCaptureModal({
         toast.error("Camera access denied or unavailable.");
       }
     }
-  }, []);
+  }, [stream]);
 
-  useEffect(() => {
-    if (isOpen) {
-      setCapturedCount(0);
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => {
-      stopCamera();
-    };
-  }, [isOpen]);
-
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (recordIntervalRef.current) {
       clearInterval(recordIntervalRef.current);
       recordIntervalRef.current = null;
@@ -113,7 +104,19 @@ export default function WebcamCaptureModal({
       setStream(null);
     }
     window.dispatchEvent(new CustomEvent("webcam-modal-close"));
-  };
+  }, [stream]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, startCamera, stopCamera]);
 
   const switchCamera = () => {
     if (devices.length <= 1) return;

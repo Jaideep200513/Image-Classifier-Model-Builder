@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, ArrowLeftRight, HelpCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { UnderTheHoodAnalytics } from "@/types";
+import { UnderTheHoodAnalytics, EpochMetric } from "@/types";
 
 interface UnderTheHoodModalProps {
   isOpen: boolean;
@@ -40,26 +40,32 @@ export default function UnderTheHoodModal({
   projectId = DEFAULT_PROJECT_ID,
 }: UnderTheHoodModalProps) {
   const [data, setData] = useState<UnderTheHoodAnalytics | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    setIsLoading(true);
-    setError(null);
-
+    let isMounted = true;
     api
       .getUnderTheHood(projectId)
       .then((res) => {
-        setData(res);
+        if (isMounted) {
+          setData(res);
+          setError(null);
+          setIsLoading(false);
+        }
       })
-      .catch((err: any) => {
-        setError(err.message || "Failed to load performance analytics");
-      })
-      .finally(() => {
-        setIsLoading(false);
+      .catch((err: Error) => {
+        if (isMounted) {
+          setError(err.message || "Failed to load performance analytics");
+          setIsLoading(false);
+        }
       });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, projectId]);
 
   if (!isOpen) return null;
@@ -212,10 +218,10 @@ function LineChartCard({
   tooltipTitle: string;
   tooltipDesc: string;
   yTitle: string;
-  data: any[];
-  y1Key: string;
+  data: EpochMetric[];
+  y1Key: keyof EpochMetric;
   y1Label: string;
-  y2Key: string;
+  y2Key: keyof EpochMetric;
   y2Label: string;
   yMin?: number;
   yMax?: number;

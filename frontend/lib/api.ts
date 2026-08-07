@@ -1,4 +1,14 @@
-import { Project, ImageClass, ImageItem } from "@/types";
+import {
+  Project,
+  ImageClass,
+  ImageItem,
+  TrainingStatusResponse,
+  UnderTheHoodAnalytics,
+  ModelStatusResponse,
+  PredictionResponse,
+  ProjectStats,
+  ExportInfo,
+} from "@/types";
 
 function getApiBase(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -25,7 +35,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, options);
-  } catch (err: any) {
+  } catch {
     throw new Error(`Backend unavailable. Please ensure FastAPI server is reachable at ${apiBase}.`);
   }
 
@@ -116,38 +126,38 @@ export const api = {
 
   // Training
   startTraining: (projectId: string, config: { epochs: number; batchSize: number; learningRate: number }) =>
-    request<any>(`/projects/${projectId}/train`, {
+    request<TrainingStatusResponse>(`/projects/${projectId}/train`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     }),
 
   getTrainingStatus: (projectId: string) =>
-    request<any>(`/projects/${projectId}/train/status`),
+    request<TrainingStatusResponse>(`/projects/${projectId}/train/status`),
 
   cancelTraining: (projectId: string) =>
-    request<any>(`/projects/${projectId}/train/cancel`, {
+    request<TrainingStatusResponse>(`/projects/${projectId}/train/cancel`, {
       method: "POST",
     }),
 
   getUnderTheHood: (projectId: string) =>
-    request<import("@/types").UnderTheHoodAnalytics>(`/projects/${projectId}/train/under-the-hood`),
+    request<UnderTheHoodAnalytics>(`/projects/${projectId}/train/under-the-hood`),
 
   // Inference / Testing
   getModelStatus: (projectId: string) =>
-    request<import("@/types").ModelStatusResponse>(`/projects/${projectId}/model-status`),
+    request<ModelStatusResponse>(`/projects/${projectId}/model-status`),
 
   predictImage: (projectId: string, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return request<import("@/types").PredictionResponse>(`/projects/${projectId}/predict/image`, {
+    return request<PredictionResponse>(`/projects/${projectId}/predict/image`, {
       method: "POST",
       body: formData,
     });
   },
 
   predictWebcam: (projectId: string, base64Image: string) =>
-    request<import("@/types").PredictionResponse>(`/projects/${projectId}/predict/webcam`, {
+    request<PredictionResponse>(`/projects/${projectId}/predict/webcam`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image_data: base64Image }),
@@ -155,17 +165,17 @@ export const api = {
 
   // Project Management & Export
   getProjectInfo: (projectId: string) =>
-    request<import("@/types").ProjectStats>(`/projects/${projectId}/info`),
+    request<ProjectStats>(`/projects/${projectId}/info`),
 
   updateProject: (projectId: string, data: { name: string; description?: string }) =>
-    request<import("@/types").Project>(`/projects/${projectId}`, {
+    request<Project>(`/projects/${projectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
 
   duplicateProject: (projectId: string) =>
-    request<import("@/types").Project>(`/projects/${projectId}/duplicate`, {
+    request<Project>(`/projects/${projectId}/duplicate`, {
       method: "POST",
     }),
 
@@ -175,7 +185,7 @@ export const api = {
     }),
 
   getExportInfo: (projectId: string) =>
-    request<import("@/types").ExportInfo>(`/projects/${projectId}/export/info`),
+    request<ExportInfo>(`/projects/${projectId}/export/info`),
 
   getExportKerasUrl: (projectId: string) =>
     `${getApiBase()}/projects/${projectId}/export/keras`,

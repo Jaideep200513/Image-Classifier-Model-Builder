@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 
 const NAV_LINKS = [
@@ -14,18 +13,13 @@ export default function Navbar() {
   const pathname = usePathname();
   const isWorkspace = pathname === "/workspace";
   const isNewProject = pathname === "/new-project";
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   return (
     /* Floating pill nav — positioned absolute so it overlays the hero */
     <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-6 pt-6">
       <motion.header
         initial={{ opacity: 0, y: -16 }}
-        animate={mounted ? { opacity: 1, y: 0 } : {}}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         style={{
           background: "#ffffff",

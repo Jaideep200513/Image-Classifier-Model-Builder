@@ -43,8 +43,9 @@ export default function NewProjectPage() {
       );
 
       router.push("/workspace");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to import .tm project file", { id: toastId });
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || "Failed to import .tm project file", { id: toastId });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {

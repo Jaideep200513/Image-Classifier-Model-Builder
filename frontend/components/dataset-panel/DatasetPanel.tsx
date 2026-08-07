@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Plus, Layers } from "lucide-react";
 import ClassCard from "./ClassCard";
-import { ImageClass } from "@/types";
+import { ImageClass, ImageItem } from "@/types";
 
 interface DatasetPanelProps {
   classes: ImageClass[];
@@ -11,8 +11,8 @@ interface DatasetPanelProps {
   onRenameClass: (id: string, name: string) => void;
   onDeleteClass: (id: string) => void;
   onToggleDisableClass: (id: string, currentDisabled?: boolean) => void;
-  onUploadImages: (classId: string, files: File[]) => Promise<any>;
-  onCaptureFrame: (classId: string, base64: string) => Promise<any>;
+  onUploadImages: (classId: string, files: File[]) => Promise<ImageItem[]>;
+  onCaptureFrame: (classId: string, base64: string) => Promise<ImageItem>;
   onDeleteImage: (imageId: string) => void;
   onClearAllImages?: (classId: string) => void;
 }

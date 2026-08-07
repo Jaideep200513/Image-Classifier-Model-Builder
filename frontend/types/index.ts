@@ -91,6 +91,19 @@ export interface TrainingState {
   trainedAt?: string | null;
 }
 
+export interface TrainingStatusResponse {
+  status: "idle" | "training" | "completed" | "error";
+  progress: number;
+  current_epoch: number;
+  total_epochs: number;
+  elapsed_time: number;
+  formatted_elapsed_time: string;
+  metrics?: TrainingMetrics | null;
+  error?: string | null;
+  has_trained_model?: boolean;
+  trained_at?: string | null;
+}
+
 export type InputSource = "webcam" | "upload";
 
 export interface NavLink {

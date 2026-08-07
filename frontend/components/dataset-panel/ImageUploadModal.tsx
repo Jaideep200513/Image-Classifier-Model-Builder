@@ -6,12 +6,13 @@ import { Upload, X, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { ImageItem } from "@/types";
 
 interface ImageUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   className: string;
-  onUpload: (files: File[]) => Promise<any>;
+  onUpload: (files: File[]) => Promise<ImageItem[]>;
 }
 
 const SUPPORTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -102,7 +103,7 @@ export default function ImageUploadModal({
         setProgress(0);
         onClose();
       }, 400);
-    } catch (err: any) {
+    } catch {
       setUploading(false);
       setProgress(0);
     }

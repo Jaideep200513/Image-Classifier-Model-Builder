@@ -2,10 +2,13 @@ import os
 import json
 import time
 import threading
+import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from fastapi import HTTPException
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 class TrainingService:
     def __init__(self, uploads_dir: str):
@@ -234,7 +237,7 @@ class TrainingService:
                     X_data.append(arr)
                     y_data.append(label)
                 except Exception as e:
-                    print(f"Skipping corrupt image {img_path}: {e}")
+                    logger.warning(f"Skipping corrupt image {img_path}: {e}")
 
             if len(X_data) < 2:
                 raise ValueError("Insufficient valid images could be loaded for training.")
@@ -447,7 +450,7 @@ class TrainingService:
                     job["trained_at"] = training_meta["trained_at"]
 
         except Exception as e:
-            print(f"Training failed for project {project_id}: {e}")
+            logger.error(f"Training failed for project {project_id}: {e}")
             with self._lock:
                 if project_id in self._jobs:
                     job = self._jobs[project_id]

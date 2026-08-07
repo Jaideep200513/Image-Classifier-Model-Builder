@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Camera, Upload, Eye, ChevronDown, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
   const [cameraActive, setCameraActive] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -37,7 +38,52 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
     clearPrediction,
   } = useInference();
 
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      setCameraError(null);
+      stopCamera();
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+        });
+      } catch (err: unknown) {
+        const error = err as { name?: string };
+        // Fallback to basic video constraint if camera is busy or overconstrained
+        if (error.name === "NotReadableError" || error.name === "OverconstrainedError") {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } else {
+          throw err;
+        }
+      }
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+    } catch (err: unknown) {
+      const error = err as { name?: string };
+      setCameraActive(false);
+      if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        setCameraError("Camera is in use by another tab or modal.");
+      } else {
+        setCameraError("Camera permission denied or unavailable.");
+      }
+    }
+  }, [stopCamera]);
 
   // Listen for webcam modal open/close events to yield camera stream
   useEffect(() => {
@@ -55,7 +101,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
       window.removeEventListener("webcam-modal-open", handleModalOpen);
       window.removeEventListener("webcam-modal-close", handleModalClose);
     };
-  }, [inputOn, inputSource, hasModel]);
+  }, [inputOn, inputSource, hasModel, startCamera, stopCamera]);
 
   // Manage webcam stream when inputOn and webcam mode change
   useEffect(() => {
@@ -67,53 +113,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
     return () => {
       stopCamera();
     };
-  }, [inputOn, inputSource, hasModel]);
-
-  async function startCamera() {
-    try {
-      setCameraError(null);
-      stopCamera();
-
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
-        });
-      } catch (err: any) {
-        // Fallback to basic video constraint if camera is busy or overconstrained
-        if (err.name === "NotReadableError" || err.name === "OverconstrainedError") {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        } else {
-          throw err;
-        }
-      }
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraActive(true);
-    } catch (err: any) {
-      console.error("Camera access error:", err);
-      setCameraActive(false);
-      if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        setCameraError("Camera is in use by another tab or modal.");
-      } else {
-        setCameraError("Camera permission denied or unavailable.");
-      }
-    }
-  }
-
-  function stopCamera() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  }
+  }, [inputOn, inputSource, hasModel, startCamera, stopCamera]);
 
   async function handleCaptureAndPredict() {
     if (!hasModel || isPredicting) return;

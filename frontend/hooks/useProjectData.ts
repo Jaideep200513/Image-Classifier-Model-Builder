@@ -16,7 +16,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
     queryFn: async () => {
       try {
         return await api.getProject(projectId);
-      } catch (err: any) {
+      } catch (err) {
         // If project doesn't exist yet on backend, auto-create it
         try {
           return await api.createProject("Image Project");
@@ -38,7 +38,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success(`Class "${newClass.name}" added`);
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to add class");
     },
   });
@@ -51,7 +51,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success(`Renamed to "${updated.name}"`);
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to rename class");
     },
   });
@@ -64,7 +64,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.info(`Class "${updated.name}" ${updated.disabled ? "disabled" : "enabled"}`);
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to update class state");
     },
   });
@@ -76,7 +76,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success("Class deleted");
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to delete class");
     },
   });
@@ -89,7 +89,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success(`Uploaded ${items.length} image${items.length > 1 ? "s" : ""}`);
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to upload images");
     },
   });
@@ -101,7 +101,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
     onSuccess: () => {
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to save captured frame");
     },
   });
@@ -113,7 +113,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success("Image removed");
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to remove image");
     },
   });
@@ -125,7 +125,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.success(`Cleared ${res.deleted_count} sample${res.deleted_count !== 1 ? "s" : ""}`);
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to clear class samples");
     },
   });
@@ -137,7 +137,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
       toast.info("Project dataset erased and reset.");
       invalidateProject();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to reset project");
     },
   });

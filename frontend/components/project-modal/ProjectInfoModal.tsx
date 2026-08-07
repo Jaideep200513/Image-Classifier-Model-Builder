@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
-import { Info, X, Edit2, Copy, Trash2, Check, Layers, Image as ImageIcon, Calendar, Sparkles } from "lucide-react";
+import { Info, X, Edit2, Check, Layers, Image as ImageIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
@@ -27,8 +27,6 @@ export default function ProjectInfoModal({
 }: ProjectInfoModalProps) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
 
   const statsQuery = useQuery<ProjectStats, Error>({
     queryKey: ["projectStats", projectId],
@@ -37,12 +35,19 @@ export default function ProjectInfoModal({
     staleTime: 2000,
   });
 
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  const statsName = statsQuery.data?.name;
+  const statsDesc = statsQuery.data?.description;
+
   useEffect(() => {
-    if (statsQuery.data) {
-      setName(statsQuery.data.name);
-      setDescription(statsQuery.data.description || "");
+    if (statsName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setName(statsName);
+      setDescription(statsDesc || "");
     }
-  }, [statsQuery.data]);
+  }, [statsName, statsDesc]);
 
   const updateMutation = useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
@@ -54,19 +59,8 @@ export default function ProjectInfoModal({
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       if (onProjectUpdated) onProjectUpdated();
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to update project");
-    },
-  });
-
-  const duplicateMutation = useMutation({
-    mutationFn: () => api.duplicateProject(projectId),
-    onSuccess: (newProj) => {
-      toast.success(`Project duplicated as "${newProj.name}"`);
-      queryClient.invalidateQueries({ queryKey: ["projectStats"] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message || "Failed to duplicate project");
     },
   });
 

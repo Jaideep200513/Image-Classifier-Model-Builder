@@ -14,7 +14,7 @@ export default function ProjectCard() {
     e.preventDefault();
     try {
       await api.resetProject("default-project");
-    } catch (err) {
+    } catch {
       // Ignore if server unreachable
     }
     router.push("/workspace");

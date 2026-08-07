@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Download, Settings, Info, Edit2, Check } from "lucide-react";
+import { ArrowLeft, Download, Info, Edit2, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,8 +50,9 @@ export default function WorkspacePage() {
       await api.updateProject(DEFAULT_PROJECT_ID, { name: clean });
       queryClient.invalidateQueries({ queryKey: ["project", DEFAULT_PROJECT_ID] });
       toast.success("Project renamed successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to rename project");
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error.message || "Failed to rename project");
     } finally {
       setIsEditingProjectName(false);
     }

@@ -24,7 +24,7 @@ export function useInference(projectId: string = DEFAULT_PROJECT_ID) {
     onSuccess: (res) => {
       setPredictionResult(res);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to predict image");
     },
   });
@@ -34,7 +34,7 @@ export function useInference(projectId: string = DEFAULT_PROJECT_ID) {
     onSuccess: (res) => {
       setPredictionResult(res);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || "Failed to predict webcam frame");
     },
   });

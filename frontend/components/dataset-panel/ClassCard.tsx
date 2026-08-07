@@ -21,8 +21,8 @@ interface ClassCardProps {
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onToggleDisable: (id: string, currentDisabled?: boolean) => void;
-  onUploadImages: (classId: string, files: File[]) => Promise<any>;
-  onCaptureFrame: (classId: string, base64Image: string) => Promise<any>;
+  onUploadImages: (classId: string, files: File[]) => Promise<ImageItem[]>;
+  onCaptureFrame: (classId: string, base64Image: string) => Promise<ImageItem>;
   onDeleteImage: (imageId: string) => void;
   onClearAllImages?: (classId: string) => void;
   canDelete: boolean;
@@ -57,6 +57,7 @@ export default function ClassCard({
   }, [isRenaming]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraftName(imageClass.name);
   }, [imageClass.name]);
 

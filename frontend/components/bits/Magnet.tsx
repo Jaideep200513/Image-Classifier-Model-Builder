@@ -13,7 +13,6 @@ interface MagnetProps {
 
 export default function Magnet({
   children,
-  padding = 60,
   disabled = false,
   magnetStrength = 0.4,
   className = "",

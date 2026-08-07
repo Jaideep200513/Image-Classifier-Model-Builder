@@ -269,7 +269,7 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
 
         <Accordion
           value={accordionValue}
-          onValueChange={(val: any) => setAccordionValue(Array.isArray(val) ? val : val ? [val] : [])}
+          onValueChange={(val: string | string[]) => setAccordionValue(Array.isArray(val) ? val : val ? [val] : [])}
         >
           <AccordionItem value="advanced" className="border-none">
             <AccordionTrigger

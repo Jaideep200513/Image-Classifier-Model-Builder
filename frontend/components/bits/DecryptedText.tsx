@@ -19,7 +19,6 @@ export default function DecryptedText({
   speed = 60,
   maxIterations = 8,
   sequential = true,
-  revealDirection = "start",
   characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
   className = "",
   encryptedClassName = "",
