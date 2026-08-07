@@ -1,5 +1,14 @@
 # ModelForge — Image Classification Platform
 
+## 🌐 Live Demo
+
+**Oracle Cloud Deployment:**  
+http://140.245.221.99:3000/
+
+> **Note:** The application is hosted on an Oracle Cloud VM. If the instance is stopped or restarted, the URL may become temporarily unavailable.
+
+---
+
 ModelForge is a fast, internal, production-ready platform inspired by Teachable Machine for visually building, training, previewing, and exporting custom image classification models — without writing code or requiring machine learning expertise.
 
 ---
