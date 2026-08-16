@@ -30,8 +30,9 @@ export default function NewProjectPage() {
     const toastId = toast.loading(`Importing "${file.name}"...`);
 
     try {
-      const importedProj = await api.importTmProject("default-project", file);
-      await queryClient.invalidateQueries({ queryKey: ["project", "default-project"] });
+      const newProjectId = `proj-${Math.random().toString(36).substring(2, 10)}`;
+      const importedProj = await api.importTmProject(newProjectId, file);
+      await queryClient.invalidateQueries({ queryKey: ["project", importedProj.id] });
 
       const totalImages = importedProj.classes.reduce(
         (acc, c) => acc + (c.images?.length || c.imageCount || 0),
@@ -42,7 +43,7 @@ export default function NewProjectPage() {
         { id: toastId }
       );
 
-      router.push("/workspace");
+      router.push(`/workspace?projectId=${importedProj.id}`);
     } catch (err: unknown) {
       const error = err as Error;
       toast.error(error.message || "Failed to import .tm project file", { id: toastId });

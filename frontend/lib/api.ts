@@ -85,42 +85,42 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
-  updateClass: (classId: string, payload: { name?: string; disabled?: boolean }) =>
-    request<ImageClass>(`/classes/${classId}`, {
+  updateClass: (classId: string, payload: { name?: string; disabled?: boolean }, projectId?: string) =>
+    request<ImageClass>(`/classes/${classId}${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }),
 
-  deleteClass: (classId: string) =>
-    request<{ success: boolean; class_id: string }>(`/classes/${classId}`, {
+  deleteClass: (classId: string, projectId?: string) =>
+    request<{ success: boolean; class_id: string }>(`/classes/${classId}${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "DELETE",
     }),
 
   // Images
-  uploadImages: (classId: string, files: File[]) => {
+  uploadImages: (classId: string, files: File[], projectId?: string) => {
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));
-    return request<ImageItem[]>(`/classes/${classId}/upload`, {
+    return request<ImageItem[]>(`/classes/${classId}/upload${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "POST",
       body: formData,
     });
   },
 
-  captureImage: (classId: string, base64Image: string) =>
-    request<ImageItem>(`/classes/${classId}/capture`, {
+  captureImage: (classId: string, base64Image: string, projectId?: string) =>
+    request<ImageItem>(`/classes/${classId}/capture${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ image_data: base64Image }),
     }),
 
-  deleteImage: (imageId: string) =>
-    request<{ success: boolean; image_id: string }>(`/images/${imageId}`, {
+  deleteImage: (imageId: string, projectId?: string) =>
+    request<{ success: boolean; image_id: string }>(`/images/${imageId}${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "DELETE",
     }),
 
-  clearClassImages: (classId: string) =>
-    request<{ success: boolean; class_id: string; deleted_count: number }>(`/classes/${classId}/images`, {
+  clearClassImages: (classId: string, projectId?: string) =>
+    request<{ success: boolean; class_id: string; deleted_count: number }>(`/classes/${classId}/images${projectId ? `?project_id=${projectId}` : ""}`, {
       method: "DELETE",
     }),
 

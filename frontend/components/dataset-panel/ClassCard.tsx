@@ -102,7 +102,22 @@ export default function ClassCard({
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
         <div className="flex flex-1 items-center gap-2 min-w-0">
           {/* Color indicator */}
-          <span className={cn("h-2.5 w-2.5 flex-shrink-0 rounded-full", imageClass.disabled ? "bg-gray-400" : (imageClass.color || "bg-blue-100 text-blue-700").split(" ")[0])} aria-hidden />
+          <span
+            className={cn(
+              "h-2.5 w-2.5 flex-shrink-0 rounded-full",
+              imageClass.disabled
+                ? "bg-gray-400"
+                : imageClass.color && !imageClass.color.startsWith("#")
+                ? imageClass.color.split(" ")[0]
+                : ""
+            )}
+            style={
+              !imageClass.disabled && imageClass.color?.startsWith("#")
+                ? { backgroundColor: imageClass.color }
+                : undefined
+            }
+            aria-hidden
+          />
 
           {isRenaming ? (
             <div className="flex flex-1 items-center gap-2">

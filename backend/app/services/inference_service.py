@@ -4,20 +4,13 @@ import json
 import time
 import base64
 import threading
+import logging
 from typing import Dict, Any, Optional, List
 from PIL import Image
 from fastapi import HTTPException
+from app.constants import CLASS_COLORS
 
-CLASS_COLORS = [
-    "bg-blue-100 text-blue-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-violet-100 text-violet-700",
-    "bg-amber-100 text-amber-700",
-    "bg-rose-100 text-rose-700",
-    "bg-cyan-100 text-cyan-700",
-    "bg-orange-100 text-orange-700",
-    "bg-pink-100 text-pink-700",
-]
+logger = logging.getLogger(__name__)
 
 class InferenceService:
     def __init__(self, uploads_dir: str):
@@ -62,8 +55,8 @@ class InferenceService:
                     meta = json.load(f)
                 classes_list = meta.get("classes", [])
                 trained_at = meta.get("trained_at")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read training metadata for project '{project_id}': {e}")
 
         if not classes_list:
             meta_path = self._get_metadata_path(project_id)
@@ -72,8 +65,8 @@ class InferenceService:
                     with open(meta_path, "r", encoding="utf-8") as f:
                         meta = json.load(f)
                     classes_list = [c["name"] for c in meta.get("classes", []) if not c.get("disabled", False)]
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read project metadata for project '{project_id}': {e}")
 
         return {
             "has_model": True,
@@ -121,8 +114,8 @@ class InferenceService:
                             "name": c["name"],
                             "color": c.get("color", CLASS_COLORS[idx % len(CLASS_COLORS)])
                         })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read metadata for inference classes on project '{project_id}': {e}")
 
             if not classes_meta and os.path.exists(training_meta_path):
                 try:
@@ -134,8 +127,8 @@ class InferenceService:
                             "name": c_name,
                             "color": CLASS_COLORS[idx % len(CLASS_COLORS)]
                         })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read training metadata for inference classes on project '{project_id}': {e}")
 
             cache_entry = {
                 "model": model,

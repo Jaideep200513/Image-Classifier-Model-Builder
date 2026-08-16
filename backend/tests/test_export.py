@@ -60,9 +60,8 @@ def test_export_and_project_management():
 
     with zipfile.ZipFile(io.BytesIO(res_keras_zip.content)) as zf:
         file_list = zf.namelist()
-        assert "model.keras" in file_list
-        assert "classes.json" in file_list
-        assert "README.txt" in file_list
+        assert "keras_model.h5" in file_list
+        assert "labels.txt" in file_list
 
     # 7. Test Download SavedModel Zip Archive
     res_sm_zip = client.get(f"/projects/{proj_id}/export/savedmodel")
@@ -81,10 +80,9 @@ def test_export_and_project_management():
     assert res_tfjs_zip.headers["content-type"] == "application/zip"
     with zipfile.ZipFile(io.BytesIO(res_tfjs_zip.content)) as zf:
         file_list = zf.namelist()
-        assert "classes.json" in file_list
-        assert "index.html" in file_list
-        assert "README.txt" in file_list
-        assert "model.json" in file_list or "model.keras" in file_list
+        assert "metadata.json" in file_list
+        assert "model.json" in file_list
+        assert "weights.bin" in file_list
 
     # 7.6. Test Download Teachable Machine (.tm) Archive
     res_tm_zip = client.get(f"/projects/{proj_id}/export/tm")
