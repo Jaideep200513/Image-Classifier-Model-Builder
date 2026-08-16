@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { ArrowLeft, Download, Info, Edit2, Check } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -31,14 +31,19 @@ function FlowConnector() {
   );
 }
 
-export default function WorkspacePage() {
+function WorkspaceContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || searchParams.get("id") || DEFAULT_PROJECT_ID;
+
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showProjectInfoModal, setShowProjectInfoModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [projectNameInput, setProjectNameInput] = useState("");
+
+  const queryClient = useQueryClient();
 
   const handleSaveProjectName = async () => {
     const clean = projectNameInput.trim();
@@ -47,8 +52,8 @@ export default function WorkspacePage() {
       return;
     }
     try {
-      await api.updateProject(DEFAULT_PROJECT_ID, { name: clean });
-      queryClient.invalidateQueries({ queryKey: ["project", DEFAULT_PROJECT_ID] });
+      await api.updateProject(projectId, { name: clean });
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       toast.success("Project renamed successfully");
     } catch (err: unknown) {
       const error = err as Error;
@@ -70,11 +75,9 @@ export default function WorkspacePage() {
     deleteImage,
     clearClassImages,
     resetProject,
-  } = useProjectData();
+  } = useProjectData(projectId);
 
   const classes = project?.classes || [];
-
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     // 1. Trap browser back button to show ConfirmLeaveModal
@@ -92,35 +95,21 @@ export default function WorkspacePage() {
       return e.returnValue;
     };
 
-    // 3. Send beacon to reset backend data if tab is closed or reloaded
-    const handlePageHide = () => {
-      const resetUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/projects/${DEFAULT_PROJECT_ID}/reset`;
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(resetUrl);
-      } else {
-        fetch(resetUrl, { method: "POST", keepalive: true }).catch(() => {});
-      }
-    };
-
     window.addEventListener("popstate", handlePopState);
     window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("pagehide", handlePageHide);
     };
   }, []);
-
-
 
   const handleConfirmLeaveAndErase = async () => {
     setIsResetting(true);
     try {
       await resetProject();
-      queryClient.invalidateQueries({ queryKey: ["trainingStatus", DEFAULT_PROJECT_ID] });
-      queryClient.invalidateQueries({ queryKey: ["modelStatus", DEFAULT_PROJECT_ID] });
+      queryClient.invalidateQueries({ queryKey: ["trainingStatus", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["modelStatus", projectId] });
       setShowLeaveModal(false);
       router.push("/new-project");
     } catch {
@@ -270,7 +259,7 @@ export default function WorkspacePage() {
             transition={{ duration: 0.38, ease: "easeOut", delay: 0.18 }}
             className="flex h-full w-72 flex-shrink-0 flex-col overflow-y-auto p-4 pt-6 pb-12"
           >
-            <TrainingPanel classes={classes} />
+            <TrainingPanel classes={classes} projectId={projectId} />
           </motion.div>
 
           {/* Flow connector */}
@@ -283,7 +272,7 @@ export default function WorkspacePage() {
             transition={{ duration: 0.38, ease: "easeOut", delay: 0.3 }}
             className="flex h-full w-80 flex-shrink-0 flex-col overflow-y-auto p-4 pt-6 pb-12"
           >
-            <PreviewPanel classes={classes} />
+            <PreviewPanel classes={classes} projectId={projectId} />
           </motion.div>
         </div>
 
@@ -303,8 +292,8 @@ export default function WorkspacePage() {
             />
           </div>
 
-          <TrainingPanel classes={classes} />
-          <PreviewPanel classes={classes} />
+          <TrainingPanel classes={classes} projectId={projectId} />
+          <PreviewPanel classes={classes} projectId={projectId} />
         </div>
       </div>
 
@@ -320,16 +309,26 @@ export default function WorkspacePage() {
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
+        projectId={projectId}
       />
 
       {/* Project Info & Settings Modal */}
       <ProjectInfoModal
         isOpen={showProjectInfoModal}
         onClose={() => setShowProjectInfoModal(false)}
+        projectId={projectId}
         onProjectUpdated={() => {
-          queryClient.invalidateQueries({ queryKey: ["project", DEFAULT_PROJECT_ID] });
+          queryClient.invalidateQueries({ queryKey: ["project", projectId] });
         }}
       />
     </div>
+  );
+}
+
+export default function WorkspacePage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center text-xs text-slate-500">Loading workspace...</div>}>
+      <WorkspaceContent />
+    </Suspense>
   );
 }

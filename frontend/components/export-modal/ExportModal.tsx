@@ -70,9 +70,10 @@ export default function ExportModal({
 
 <script>
   async function predictImage(imgElement) {
-    // 1. Load TensorFlow.js model and class mappings
+    // 1. Load TensorFlow.js model and metadata labels
     const model = await tf.loadLayersModel('model.json');
-    const classes = await fetch('classes.json').then(res => res.json());
+    const metadata = await fetch('metadata.json').then(res => res.json());
+    const labels = metadata.labels;
 
     // 2. Preprocess input image (224x224, MobileNetV2 scaling [-1, 1])
     const tensor = tf.browser.fromPixels(imgElement)
@@ -86,7 +87,7 @@ export default function ExportModal({
     const predictions = await model.predict(tensor).data();
     const topIdx = predictions.indexOf(Math.max(...predictions));
     
-    console.log("Predicted Class:", classes[topIdx].name);
+    console.log("Predicted Class:", labels[topIdx]);
   }
 </script>`;
 
@@ -148,7 +149,7 @@ export default function ExportModal({
                   </p>
                   <p className="text-xs opacity-90 mt-0.5 font-medium">
                     {exportInfo.has_model
-                      ? "Package contains model weights, JS/Python code, classes.json, and metadata."
+                      ? "Package contains model weights, metadata.json, labels.txt, and model files."
                       : "You can export Teachable Machine (.tm) dataset files. Train a model to unlock model packages."}
                   </p>
                 </div>
@@ -187,7 +188,7 @@ export default function ExportModal({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-base font-bold text-foreground">TensorFlow.js (JavaScript)</h4>
-                      <p className="text-xs text-muted-foreground font-medium leading-relaxed">Web-ready model.json, weights &amp; index.html template</p>
+                      <p className="text-xs text-muted-foreground font-medium leading-relaxed">Web-ready model.json, weights.bin &amp; metadata.json</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -264,7 +265,7 @@ export default function ExportModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-base font-bold text-foreground">Keras Bundle (.zip)</h4>
-                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">Includes model.keras, classes.json &amp; python guide</p>
+                    <p className="text-xs text-muted-foreground font-medium leading-relaxed">Includes keras_model.h5 &amp; labels.txt</p>
                   </div>
                 </div>
                 <Button

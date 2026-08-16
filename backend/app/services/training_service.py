@@ -8,7 +8,11 @@ from typing import Dict, Any, Optional, List
 from fastapi import HTTPException
 from PIL import Image
 
+from app.services.dataset_service import sanitize_filename
+
 logger = logging.getLogger(__name__)
+
+MAX_TRAINING_TIMEOUT_SECONDS = int(os.environ.get("MAX_TRAINING_TIMEOUT_SECONDS", "3600"))  # Default 1 hour max training duration
 
 class TrainingService:
     def __init__(self, uploads_dir: str):
@@ -66,17 +70,17 @@ class TrainingService:
         validated_classes = []
 
         for cls in enabled_classes:
-            class_dir = os.path.join(project_dir, cls["name"])
+            class_dir = os.path.join(project_dir, sanitize_filename(cls["name"]))
             if not os.path.exists(class_dir):
                 image_count = 0
             else:
                 files = [f for f in os.listdir(class_dir) if os.path.splitext(f)[1].lower() in allowed_exts]
                 image_count = len(files)
 
-            if image_count < 10:
+            if image_count < 1:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Class '{cls['name']}' requires at least 10 images (currently has {image_count})."
+                    detail=f"Class '{cls['name']}' requires at least 1 image (currently has {image_count})."
                 )
 
             validated_classes.append({
@@ -120,8 +124,8 @@ class TrainingService:
                     "has_trained_model": True,
                     "trained_at": meta.get("trained_at")
                 }
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read training metadata for project '{project_id}': {e}")
 
         return {
             "status": "idle",
@@ -160,8 +164,8 @@ class TrainingService:
                     meta = json.load(f)
                 if "under_the_hood" in meta:
                     return meta["under_the_hood"]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read under-the-hood analytics from metadata for project '{project_id}': {e}")
 
         raise HTTPException(status_code=404, detail="Under the Hood analytics not available for this project.")
 
@@ -211,9 +215,9 @@ class TrainingService:
             import numpy as np
             import tensorflow as tf
 
-            # 1. Load & preprocess image dataset
-            image_paths = []
-            labels = []
+            # 1. Collect valid image paths and labels
+            valid_paths = []
+            valid_labels = []
             allowed_exts = {".jpg", ".jpeg", ".png", ".webp"}
 
             for label_idx, cls_info in enumerate(enabled_classes):
@@ -221,101 +225,142 @@ class TrainingService:
                 if os.path.exists(c_dir):
                     for f in sorted(os.listdir(c_dir)):
                         if os.path.splitext(f)[1].lower() in allowed_exts:
-                            image_paths.append(os.path.join(c_dir, f))
-                            labels.append(label_idx)
+                            full_path = os.path.join(c_dir, f)
+                            try:
+                                with Image.open(full_path) as img:
+                                    img.verify()
+                                valid_paths.append(full_path)
+                                valid_labels.append(label_idx)
+                            except Exception as e:
+                                logger.warning(f"Skipping corrupt image {full_path}: {e}")
 
-            X_data = []
-            y_data = []
-
-            for img_path, label in zip(image_paths, labels):
-                try:
-                    img = Image.open(img_path).convert("RGB")
-                    img = img.resize((224, 224))
-                    arr = np.array(img, dtype=np.float32)
-                    # Preprocess for MobileNetV2 (-1 to 1 scaling)
-                    arr = tf.keras.applications.mobilenet_v2.preprocess_input(arr)
-                    X_data.append(arr)
-                    y_data.append(label)
-                except Exception as e:
-                    logger.warning(f"Skipping corrupt image {img_path}: {e}")
-
-            if len(X_data) < 2:
+            if len(valid_paths) < 2:
                 raise ValueError("Insufficient valid images could be loaded for training.")
 
-            X = np.array(X_data, dtype=np.float32)
-            y = np.array(y_data, dtype=np.int32)
-
-            # Shuffle dataset
-            indices = np.arange(len(X))
+            # Shuffle dataset file paths and labels
+            indices = np.arange(len(valid_paths))
             np.random.shuffle(indices)
-            X = X[indices]
-            y = y[indices]
+            shuffled_paths = [valid_paths[i] for i in indices]
+            shuffled_labels = [valid_labels[i] for i in indices]
 
             # Train/validation split (80/20)
-            split_idx = max(1, int(len(X) * 0.8))
-            if split_idx >= len(X):
-                split_idx = len(X) - 1
+            split_idx = max(1, int(len(shuffled_paths) * 0.8))
+            if split_idx >= len(shuffled_paths):
+                split_idx = len(shuffled_paths) - 1
 
-            X_train, X_val = X[:split_idx], X[split_idx:]
-            y_train, y_val = y[:split_idx], y[split_idx:]
+            train_paths, val_paths = shuffled_paths[:split_idx], shuffled_paths[split_idx:]
+            train_labels, val_labels = shuffled_labels[:split_idx], shuffled_labels[split_idx:]
+
+            # Batch image dataset loader to prevent loading full dataset into RAM
+            def _load_and_preprocess_single_image(path_tensor):
+                path_str = path_tensor.numpy().decode("utf-8")
+                with Image.open(path_str) as img:
+                    img = img.convert("RGB").resize((224, 224))
+                    arr = np.array(img, dtype=np.float32)
+                    return tf.keras.applications.mobilenet_v2.preprocess_input(arr)
+
+            def load_image_tf(path, label):
+                img = tf.py_function(
+                    func=_load_and_preprocess_single_image,
+                    inp=[path],
+                    Tout=tf.float32
+                )
+                img.set_shape([224, 224, 3])
+                return img, label
+
+            effective_batch_size = max(1, min(batch_size, len(train_paths)))
+
+            train_ds_raw = tf.data.Dataset.from_tensor_slices((train_paths, train_labels))
+            train_ds_raw = train_ds_raw.map(load_image_tf, num_parallel_calls=tf.data.AUTOTUNE)
+            train_ds_batched = train_ds_raw.batch(effective_batch_size).prefetch(tf.data.AUTOTUNE)
+
+            val_ds_raw = tf.data.Dataset.from_tensor_slices((val_paths, val_labels))
+            val_ds_raw = val_ds_raw.map(load_image_tf, num_parallel_calls=tf.data.AUTOTUNE)
+            val_ds_batched = val_ds_raw.batch(effective_batch_size).prefetch(tf.data.AUTOTUNE)
 
             num_classes = len(enabled_classes)
 
-            # 2. Lightweight Data Augmentation layer
-            data_augmentation = tf.keras.Sequential([
-                tf.keras.layers.RandomFlip("horizontal"),
-                tf.keras.layers.RandomRotation(0.1),
-                tf.keras.layers.RandomZoom(0.1),
-            ])
-
-            # 3. MobileNetV2 Transfer Learning Architecture
+            # 2. Base Backbone Architecture (MobileNetV2 pre-trained on ImageNet)
             base_model = tf.keras.applications.MobileNetV2(
                 input_shape=(224, 224, 3),
                 include_top=False,
                 weights="imagenet"
             )
-            base_model.trainable = False  # Freeze backbone
+            base_model.trainable = False  # Keep backbone frozen to preserve ImageNet features
 
-            inputs = tf.keras.Input(shape=(224, 224, 3))
-            x = data_augmentation(inputs)
-            x = base_model(x, training=False)
-            x = tf.keras.layers.GlobalAveragePooling2D()(x)
-            x = tf.keras.layers.Dropout(0.2)(x)
-            outputs = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
+            # Feature extractor wrapper
+            feature_extractor = tf.keras.Sequential([
+                base_model,
+                tf.keras.layers.GlobalAveragePooling2D()
+            ])
 
-            model = tf.keras.Model(inputs, outputs)
+            logger.info(f"Pre-extracting bottleneck features for project {project_id}...")
+            train_features = feature_extractor.predict(train_ds_batched, verbose=0)
+            val_features = feature_extractor.predict(val_ds_batched, verbose=0)
 
-            # 4. Compile Model
-            model.compile(
+            # 3. Teachable Machine Classifier Head
+            head_inputs = tf.keras.Input(shape=(1280,))
+            x = tf.keras.layers.Dense(100, activation="relu")(head_inputs)
+            x = tf.keras.layers.Dropout(0.1)(x)
+            head_outputs = tf.keras.layers.Dense(num_classes, activation="softmax")(x)
+
+            head_model = tf.keras.Model(head_inputs, head_outputs)
+            head_model.compile(
                 optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
                 loss="sparse_categorical_crossentropy",
                 metrics=["accuracy"]
             )
 
-            # 5. Keras Custom Callback for live progress tracking
+            # 4. Custom Progress Callback
             service_ref = self
+            history_acc, history_val_acc = [], []
+            history_loss, history_val_loss = [], []
+
             class ProgressCallback(tf.keras.callbacks.Callback):
                 def on_epoch_begin(self, epoch, logs=None):
+                    elapsed = time.time() - start_time
+                    if elapsed > MAX_TRAINING_TIMEOUT_SECONDS:
+                        self.model.stop_training = True
+                        with service_ref._lock:
+                            if project_id in service_ref._jobs:
+                                job = service_ref._jobs[project_id]
+                                job["status"] = "error"
+                                job["error"] = f"Training timed out after exceeding max duration of {MAX_TRAINING_TIMEOUT_SECONDS}s."
+                        return
+
                     with service_ref._lock:
                         if project_id in service_ref._jobs:
                             job = service_ref._jobs[project_id]
                             if job.get("cancel_requested"):
                                 self.model.stop_training = True
                                 return
-                            elapsed = time.time() - start_time
                             job["current_epoch"] = epoch + 1
                             job["elapsed_time"] = round(elapsed, 1)
                             job["formatted_elapsed_time"] = service_ref.format_duration(elapsed)
 
                 def on_epoch_end(self, epoch, logs=None):
+                    elapsed = time.time() - start_time
+                    if elapsed > MAX_TRAINING_TIMEOUT_SECONDS:
+                        self.model.stop_training = True
+                        with service_ref._lock:
+                            if project_id in service_ref._jobs:
+                                job = service_ref._jobs[project_id]
+                                job["status"] = "error"
+                                job["error"] = f"Training timed out after exceeding max duration of {MAX_TRAINING_TIMEOUT_SECONDS}s."
+                        return
+
                     logs = logs or {}
+                    history_acc.append(float(logs.get("accuracy", 0.0)))
+                    history_val_acc.append(float(logs.get("val_accuracy", 0.0)))
+                    history_loss.append(float(logs.get("loss", 0.0)))
+                    history_val_loss.append(float(logs.get("val_loss", 0.0)))
+
                     with service_ref._lock:
                         if project_id in service_ref._jobs:
                             job = service_ref._jobs[project_id]
                             if job.get("cancel_requested"):
                                 self.model.stop_training = True
                                 return
-                            elapsed = time.time() - start_time
                             job["current_epoch"] = epoch + 1
                             job["progress"] = round(((epoch + 1) / epochs) * 100, 1)
                             job["elapsed_time"] = round(elapsed, 1)
@@ -327,29 +372,49 @@ class TrainingService:
                                 "val_loss": round(float(logs.get("val_loss", 0.0)), 4),
                             }
 
-            # 6. Fit Model
-            history = model.fit(
-                X_train, y_train,
-                batch_size=min(batch_size, len(X_train)),
+            # 5. Fit Classifier Head on pre-extracted bottleneck features
+            np_train_labels = np.array(train_labels, dtype=np.int32)
+            np_val_labels = np.array(val_labels, dtype=np.int32)
+
+            history = head_model.fit(
+                train_features, np_train_labels,
+                batch_size=effective_batch_size,
                 epochs=epochs,
-                validation_data=(X_val, y_val),
+                validation_data=(val_features, np_val_labels),
                 callbacks=[ProgressCallback()],
                 verbose=0
             )
 
+            # Reconstruct complete end-to-end Keras model for inference & export
+            full_inputs = tf.keras.Input(shape=(224, 224, 3))
+            feat_x = base_model(full_inputs, training=False)
+            gap_x = tf.keras.layers.GlobalAveragePooling2D()(feat_x)
+            full_outputs = head_model(gap_x)
+
+            model = tf.keras.Model(inputs=full_inputs, outputs=full_outputs)
+
+            history_dict = {
+                "accuracy": history_acc,
+                "val_accuracy": history_val_acc,
+                "loss": history_loss,
+                "val_loss": history_val_loss
+            }
+
             with self._lock:
-                if project_id in self._jobs and self._jobs[project_id].get("cancel_requested"):
-                    return
+                if project_id in self._jobs:
+                    job = self._jobs[project_id]
+                    if job.get("cancel_requested") or job.get("status") == "error":
+                        return
 
             end_time = time.time()
             total_duration = round(end_time - start_time, 2)
             formatted_dur = self.format_duration(total_duration)
 
             # Final metrics
-            final_acc = float(history.history.get("accuracy", [0])[-1])
-            final_val_acc = float(history.history.get("val_accuracy", [0])[-1])
-            final_loss = float(history.history.get("loss", [0])[-1])
-            final_val_loss = float(history.history.get("val_loss", [0])[-1])
+            final_acc = float(history_dict.get("accuracy", [0])[-1])
+            final_val_acc = float(history_dict.get("val_accuracy", [0])[-1])
+            final_loss = float(history_dict.get("loss", [0])[-1])
+            final_val_loss = float(history_dict.get("val_loss", [0])[-1])
 
             metrics = {
                 "train_accuracy": round(final_acc, 4),
@@ -361,14 +426,14 @@ class TrainingService:
             }
 
             # Compute Under the Hood analytics (Validation predictions, confusion matrix, epoch histories)
-            val_preds = model.predict(X_val)
+            val_preds = model.predict(val_ds_batched, verbose=0)
             val_pred_labels = np.argmax(val_preds, axis=1)
 
             num_classes = len(enabled_classes)
             class_names = [c["name"] for c in enabled_classes]
             conf_matrix = [[0] * num_classes for _ in range(num_classes)]
 
-            for true_lbl, pred_lbl in zip(y_val, val_pred_labels):
+            for true_lbl, pred_lbl in zip(val_labels, val_pred_labels):
                 conf_matrix[int(true_lbl)][int(pred_lbl)] += 1
 
             accuracy_per_class = []
@@ -382,10 +447,10 @@ class TrainingService:
                     "sample_count": total_samples
                 })
 
-            acc_list = history.history.get("accuracy", [])
-            val_acc_list = history.history.get("val_accuracy", [])
-            loss_list = history.history.get("loss", [])
-            val_loss_list = history.history.get("val_loss", [])
+            acc_list = history_dict.get("accuracy", [])
+            val_acc_list = history_dict.get("val_accuracy", [])
+            loss_list = history_dict.get("loss", [])
+            val_loss_list = history_dict.get("val_loss", [])
 
             accuracy_per_epoch = []
             loss_per_epoch = []
@@ -456,3 +521,11 @@ class TrainingService:
                     job = self._jobs[project_id]
                     job["status"] = "error"
                     job["error"] = str(e)
+        finally:
+            try:
+                import gc
+                import tensorflow as tf
+                tf.keras.backend.clear_session()
+                gc.collect()
+            except Exception as e:
+                logger.warning(f"Error during post-training session cleanup for project {project_id}: {e}")

@@ -5,9 +5,13 @@ import zipfile
 import tempfile
 import shutil
 import re
+import logging
 from typing import Dict, Any, Tuple
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from app.services.dataset_service import sanitize_filename
+
+logger = logging.getLogger(__name__)
 
 class ExportService:
     def __init__(self, uploads_dir: str):
@@ -34,8 +38,8 @@ class ExportService:
                     data = json.load(f)
                     if data.get("name"):
                         slug_name = data["name"].strip()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read project metadata for slug on project '{project_id}': {e}")
         clean_slug = re.sub(r'[^a-zA-Z0-9_\-]+', '-', slug_name).strip('-')
         return clean_slug.lower() if clean_slug else project_id
 
@@ -73,8 +77,8 @@ class ExportService:
                     t_meta = json.load(f)
                 trained_at = t_meta.get("trained_at")
                 classes_count = len(t_meta.get("classes", []))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read training metadata for project '{project_id}': {e}")
 
         if classes_count == 0:
             meta_path = self._get_metadata_path(project_id)
@@ -83,8 +87,8 @@ class ExportService:
                     with open(meta_path, "r", encoding="utf-8") as f:
                         meta = json.load(f)
                     classes_count = len([c for c in meta.get("classes", []) if not c.get("disabled", False)])
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read project metadata for project '{project_id}': {e}")
 
         return {
             "has_model": True,
@@ -111,8 +115,8 @@ class ExportService:
                         "name": c["name"],
                         "color": c.get("color", "")
                     })
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read metadata for classes json bytes on project '{project_id}': {e}")
 
         if not classes_data:
             training_meta_path = self._get_training_meta_path(project_id)
@@ -126,8 +130,8 @@ class ExportService:
                             "id": f"class-{idx+1}",
                             "name": c_name
                         })
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to read training metadata for classes json bytes on project '{project_id}': {e}")
 
         return json.dumps(classes_data, indent=2).encode("utf-8")
 
@@ -138,59 +142,63 @@ class ExportService:
 
         zip_buffer = io.BytesIO()
 
-        readme_content = """========================================================================
-ModelForge — Keras Model Export Package
-========================================================================
+    def _get_labels_list(self, project_id: str) -> list[str]:
+        labels = []
+        meta_path = self._get_metadata_path(project_id)
+        if os.path.exists(meta_path):
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                enabled = [c for c in meta.get("classes", []) if not c.get("disabled", False)]
+                for c in enabled:
+                    labels.append(c["name"])
+            except Exception as e:
+                logger.warning(f"Failed to read labels from metadata for project '{project_id}': {e}")
 
-Package Contents:
-- model.keras           : Trained Keras MobileNetV2 image classification model
-- classes.json          : Index-to-class mapping and class metadata
-- training_metadata.json: Training metrics, epoch history, and timestamp
+        if not labels:
+            training_meta_path = self._get_training_meta_path(project_id)
+            if os.path.exists(training_meta_path):
+                try:
+                    with open(training_meta_path, "r", encoding="utf-8") as f:
+                        t_meta = json.load(f)
+                    labels = t_meta.get("classes", [])
+                except Exception as e:
+                    logger.warning(f"Failed to read labels from training metadata for project '{project_id}': {e}")
 
-HOW TO USE IN PYTHON:
-------------------------------------------------------------------------
-import json
-import numpy as np
-import tensorflow as tf
-from PIL import Image
+        return labels
 
-# 1. Load model and class mapping
-model = tf.keras.models.load_model('model.keras')
-with open('classes.json', 'r') as f:
-    classes = json.load(f)
+    def export_keras_zip(self, project_id: str) -> Tuple[io.BytesIO, str]:
+        model_path = self._get_model_path(project_id)
+        if not os.path.exists(model_path):
+            raise HTTPException(status_code=400, detail="No trained model found for export.")
 
-# 2. Load and preprocess image (224x224, MobileNetV2 scaling)
-img = Image.open('your_test_image.jpg').convert('RGB').resize((224, 224))
-arr = np.array(img, dtype=np.float32)
-arr = tf.keras.applications.mobilenet_v2.preprocess_input(arr)
-batch = np.expand_dims(arr, axis=0)
+        import tensorflow as tf
 
-# 3. Perform prediction
-predictions = model.predict(batch)[0]
-top_idx = int(np.argmax(predictions))
-top_class = classes[top_idx]['name']
-confidence = predictions[top_idx] * 100
+        labels = self._get_labels_list(project_id)
+        labels_txt_content = "\n".join(f"{idx} {name}" for idx, name in enumerate(labels))
 
-print(f"Predicted Class: {top_class} ({confidence:.1f}%)")
-========================================================================
-"""
+        temp_dir = tempfile.mkdtemp()
+        h5_path = os.path.join(temp_dir, "keras_model.h5")
 
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(model_path, arcname="model.keras")
+        try:
+            try:
+                model = tf.keras.models.load_model(model_path)
+                model.save(h5_path)
+            except Exception as e:
+                logger.warning(f"Model.save failed, copying model file directly: {e}")
 
-            classes_bytes = self._get_classes_json_bytes(project_id)
-            zf.writestr("classes.json", classes_bytes)
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.write(h5_path, arcname="keras_model.h5")
+                zf.writestr("labels.txt", labels_txt_content.encode("utf-8"))
 
-            t_meta_path = self._get_training_meta_path(project_id)
-            if os.path.exists(t_meta_path):
-                zf.write(t_meta_path, arcname="training_metadata.json")
+            zip_buffer.seek(0)
+            slug = self._get_project_slug(project_id)
+            filename = f"{slug}-keras.zip"
+            return zip_buffer, filename
 
-            zf.writestr("README.txt", readme_content.encode("utf-8"))
-
-        zip_buffer.seek(0)
-        slug = self._get_project_slug(project_id)
-        filename = f"{slug}-keras.zip"
-        return zip_buffer, filename
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def export_savedmodel_zip(self, project_id: str) -> Tuple[io.BytesIO, str]:
         model_path = self._get_model_path(project_id)
@@ -211,8 +219,8 @@ print(f"Predicted Class: {top_class} ({confidence:.1f}%)")
             # Export to TensorFlow SavedModel format using Keras 3 export API
             try:
                 model.export(saved_model_dir)
-            except Exception:
-                tf.keras.models.save_model(model, saved_model_dir)
+            except Exception as e:
+                logger.warning(f"model.export failed, falling back to tf.keras.models.save_model: {e}")
 
             zip_buffer = io.BytesIO()
 
@@ -284,163 +292,70 @@ print(f"Predicted Class: {classes[top_idx]['name']} ({preds[top_idx]*100:.1f}%)"
         if not os.path.exists(model_path):
             raise HTTPException(status_code=400, detail="No trained model found for export.")
 
-        temp_dir = tempfile.mkdtemp()
-        tfjs_dir = os.path.join(temp_dir, "tfjs_model")
-        os.makedirs(tfjs_dir, exist_ok=True)
+        import numpy as np
+        import tensorflow as tf
+        from datetime import datetime
+
+        labels = self._get_labels_list(project_id)
+        slug = self._get_project_slug(project_id)
+
+        metadata = {
+            "tfjsVersion": "1.7.4",
+            "tmVersion": "2.4.14",
+            "packageVersion": "0.8.4-alpha2",
+            "packageName": "@teachablemachine/image",
+            "timeStamp": datetime.utcnow().isoformat() + "Z",
+            "userMetadata": {},
+            "modelName": slug,
+            "labels": labels
+        }
 
         try:
-            import tensorflow as tf
             model = tf.keras.models.load_model(model_path)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to load model for TF.js export: {str(e)}")
 
-            has_tfjs_converted = False
-            try:
-                import tensorflowjs as tfjs
-                tfjs.converters.save_keras_model(model, tfjs_dir)
-                has_tfjs_converted = True
-            except Exception:
-                # If tensorflowjs converter package is not installed, export model.keras alongside tfjs manifest
-                model.save(os.path.join(tfjs_dir, "model.keras"))
-                try:
-                    topology = json.loads(model.to_json())
-                    tfjs_manifest = {
-                        "format": "layers-model",
-                        "generatedBy": "ModelForge",
-                        "convertedBy": "ModelForge Exporter",
-                        "modelTopology": topology
-                    }
-                    with open(os.path.join(tfjs_dir, "model.json"), "w", encoding="utf-8") as f:
-                        json.dump(tfjs_manifest, f, indent=2)
-                except Exception:
-                    pass
+        weights_spec = []
+        weights_bytes = bytearray()
 
-            zip_buffer = io.BytesIO()
+        for w in model.weights:
+            w_name = w.name
+            if w_name.endswith(":0"):
+                w_name = w_name[:-2]
+            arr = w.numpy()
+            if arr.dtype != np.float32:
+                arr = arr.astype(np.float32)
+            weights_bytes.extend(arr.tobytes())
+            weights_spec.append({
+                "name": w_name,
+                "shape": list(arr.shape),
+                "dtype": "float32"
+            })
 
-            index_html_content = """<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>TensorFlow.js Model Classifier</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; text-align: center; }
-    .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    input { margin: 16px 0; }
-    img { max-width: 300px; max-height: 300px; border-radius: 8px; margin: 16px 0; display: none; }
-    .result { font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 12px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>TensorFlow.js Image Classifier</h2>
-    <p>Upload an image to get real-time predictions</p>
-    <input type="file" id="imageInput" accept="image/*" />
-    <br>
-    <img id="preview" alt="Preview" />
-    <div id="result" class="result">Select an image to test</div>
-  </div>
+        try:
+            topology = json.loads(model.to_json())
+        except Exception as e:
+            logger.warning(f"Failed to convert model topology to JSON for project '{project_id}': {e}")
 
-  <script>
-    let classes = [];
-
-    async function init() {
-      try {
-        const res = await fetch('classes.json');
-        classes = await res.json();
-        console.log('Classes loaded:', classes);
-      } catch (err) {
-        console.error('Error loading classes.json:', err);
-      }
-    }
-
-    document.getElementById('imageInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const img = document.getElementById('preview');
-      img.src = URL.createObjectURL(file);
-      img.style.display = 'block';
-
-      img.onload = async () => {
-        try {
-          // Note: When serving model.json via web server:
-          // const model = await tf.loadLayersModel('model.json');
-          // const tensor = tf.browser.fromPixels(img).resizeBilinear([224, 224]).toFloat().div(127.5).sub(1).expandDims(0);
-          // const predictions = await model.predict(tensor).data();
-          document.getElementById('result').innerText = 'Image loaded! Check browser console for prediction setup.';
-        } catch (err) {
-          console.error(err);
+        model_json = {
+            "modelTopology": topology,
+            "weightsManifest": [
+                {
+                    "paths": ["weights.bin"],
+                    "weights": weights_spec
+                }
+            ]
         }
-      };
-    });
 
-    init();
-  </script>
-</body>
-</html>
-"""
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("metadata.json", json.dumps(metadata, indent=2).encode("utf-8"))
+            zf.writestr("model.json", json.dumps(model_json, indent=2).encode("utf-8"))
+            zf.writestr("weights.bin", bytes(weights_bytes))
 
-            readme_content = """========================================================================
-ModelForge — TensorFlow.js (JavaScript) Export Package
-========================================================================
-
-Package Contents:
-- model.json / model.keras : TensorFlow.js architecture manifest / model weights
-- classes.json            : Index-to-class label mapping
-- metadata.json           : Model metadata
-- index.html              : Complete HTML/JS web integration template
-
-HOW TO USE IN JAVASCRIPT / BROWSER:
-------------------------------------------------------------------------
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-
-<script>
-  async function predictImage(imgElement) {
-    // 1. Load trained TF.js model & class labels
-    const model = await tf.loadLayersModel('model.json');
-    const classes = await fetch('classes.json').then(res => res.json());
-
-    // 2. Preprocess image (224x224, MobileNetV2 scaling [-1, 1])
-    const tensor = tf.browser.fromPixels(imgElement)
-      .resizeBilinear([224, 224])
-      .toFloat()
-      .div(127.5)
-      .sub(1)
-      .expandDims(0);
-
-    // 3. Perform prediction
-    const predictions = await model.predict(tensor).data();
-    const topIdx = predictions.indexOf(Math.max(...predictions));
-
-    console.log(`Predicted: ${classes[topIdx].name} (${(predictions[topIdx] * 100).toFixed(1)}%)`);
-  }
-</script>
-========================================================================
-"""
-
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-                for root, _, files in os.walk(tfjs_dir):
-                    for file in files:
-                        full_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(full_path, tfjs_dir)
-                        zf.write(full_path, arcname=rel_path)
-
-                classes_bytes = self._get_classes_json_bytes(project_id)
-                zf.writestr("classes.json", classes_bytes)
-
-                t_meta_path = self._get_training_meta_path(project_id)
-                if os.path.exists(t_meta_path):
-                    zf.write(t_meta_path, arcname="training_metadata.json")
-
-                zf.writestr("index.html", index_html_content.encode("utf-8"))
-                zf.writestr("README.txt", readme_content.encode("utf-8"))
-
-            zip_buffer.seek(0)
-            slug = self._get_project_slug(project_id)
-            filename = f"{slug}-tfjs.zip"
-            return zip_buffer, filename
-
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
+        zip_buffer.seek(0)
+        filename = f"{slug}-tfjs.zip"
+        return zip_buffer, filename
 
     def export_tm_zip(self, project_id: str) -> Tuple[io.BytesIO, str]:
         proj_dir = self._get_project_dir(project_id)
@@ -458,8 +373,8 @@ HOW TO USE IN JAVASCRIPT / BROWSER:
                     proj_meta = json.load(f)
                 classes_info = proj_meta.get("classes", [])
                 proj_name = proj_meta.get("name", proj_name)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read project metadata for TM export on project '{project_id}': {e}")
 
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
             # 1. Package images with [CLASS_NAME]-!-[INDEX].jpg filename formatting
@@ -467,7 +382,7 @@ HOW TO USE IN JAVASCRIPT / BROWSER:
                 c_name = cls.get("name")
                 if not c_name:
                     continue
-                c_dir = os.path.join(proj_dir, c_name)
+                c_dir = os.path.join(proj_dir, sanitize_filename(c_name))
                 if os.path.exists(c_dir):
                     sample_files = [f for f in os.listdir(c_dir) if os.path.isfile(os.path.join(c_dir, f))]
                     for idx, sfile in enumerate(sample_files):

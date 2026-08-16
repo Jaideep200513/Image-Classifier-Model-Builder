@@ -106,6 +106,6 @@ def test_training_validation_failure():
     # Try starting training with 0 images in default classes
     res_train = client.post(f"/projects/{project_id}/train", json={"epochs": 5, "batchSize": 16, "learningRate": 0.001})
     assert res_train.status_code == 400
-    assert "at least 10 images" in res_train.json()["detail"] or "required for training" in res_train.json()["detail"]
+    assert "at least 1 image" in res_train.json()["detail"] or "required for training" in res_train.json()["detail"]
 
 

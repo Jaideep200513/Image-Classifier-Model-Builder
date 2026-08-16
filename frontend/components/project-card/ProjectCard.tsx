@@ -13,11 +13,11 @@ export default function ProjectCard() {
   async function handleCreateProject(e: React.MouseEvent) {
     e.preventDefault();
     try {
-      await api.resetProject("default-project");
+      const newProj = await api.createProject("Image Project");
+      router.push(`/workspace?projectId=${newProj.id}`);
     } catch {
-      // Ignore if server unreachable
+      router.push("/workspace");
     }
-    router.push("/workspace");
   }
 
   return (

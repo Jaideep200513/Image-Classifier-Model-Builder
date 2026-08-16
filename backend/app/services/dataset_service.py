@@ -5,23 +5,25 @@ import uuid
 import base64
 import zipfile
 import io
+import logging
 from datetime import datetime
 from typing import List, Optional, Tuple
 from fastapi import UploadFile, HTTPException
+from app.constants import CLASS_COLORS
 
-CLASS_COLORS = [
-    "bg-blue-100 text-blue-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-violet-100 text-violet-700",
-    "bg-amber-100 text-amber-700",
-    "bg-rose-100 text-rose-700",
-    "bg-cyan-100 text-cyan-700",
-    "bg-orange-100 text-orange-700",
-    "bg-pink-100 text-pink-700",
-]
+logger = logging.getLogger(__name__)
+
+import re
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+def sanitize_filename(name: str) -> str:
+    if not name:
+        return "unnamed"
+    sanitized = re.sub(r'[\<\>:"/\\\|\?\*\x00-\x1f]', '_', name).strip()
+    sanitized = sanitized.rstrip('. ')
+    return sanitized if sanitized else "unnamed"
 
 class DatasetService:
     def __init__(self, uploads_dir: str):
@@ -33,6 +35,9 @@ class DatasetService:
         os.makedirs(project_dir, exist_ok=True)
         return project_dir
 
+    def _get_class_dir(self, project_id: str, class_name: str) -> str:
+        return os.path.join(self._get_project_dir(project_id), sanitize_filename(class_name))
+
     def _get_meta_path(self, project_id: str) -> str:
         return os.path.join(self._get_project_dir(project_id), "metadata.json")
 
@@ -42,8 +47,8 @@ class DatasetService:
             try:
                 with open(meta_path, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load metadata for project '{project_id}': {e}")
 
         # Default initial project state with Class 1 & Class 2
         default_data = {
@@ -71,7 +76,7 @@ class DatasetService:
         }
         self._save_metadata(project_id, default_data)
         for cls in default_data["classes"]:
-            os.makedirs(os.path.join(self._get_project_dir(project_id), cls["name"]), exist_ok=True)
+            os.makedirs(self._get_class_dir(project_id, cls["name"]), exist_ok=True)
         return default_data
 
     def _save_metadata(self, project_id: str, data: dict):
@@ -84,7 +89,7 @@ class DatasetService:
         project_dir = self._get_project_dir(project_id)
 
         for cls in project["classes"]:
-            class_dir = os.path.join(project_dir, cls["name"])
+            class_dir = self._get_class_dir(project_id, cls["name"])
             os.makedirs(class_dir, exist_ok=True)
 
             existing_images = []
@@ -99,7 +104,7 @@ class DatasetService:
                             existing_images.append(known_imgs[f])
                         else:
                             img_id = f"img-{uuid.uuid4().hex[:8]}"
-                            img_url = f"/uploads/{project_id}/{cls['name']}/{f}"
+                            img_url = f"/uploads/{project_id}/{sanitize_filename(cls['name'])}/{f}"
                             existing_images.append({
                                 "id": img_id,
                                 "filename": f,
@@ -113,12 +118,12 @@ class DatasetService:
         self._save_metadata(project_id, project)
         return project
 
-    def create_project(self, name: str = "Image Project", type: str = "image", description: str = "") -> dict:
+    def create_project(self, name: str = "Image Project", project_type: str = "image", description: str = "") -> dict:
         project_id = f"proj-{uuid.uuid4().hex[:8]}"
         project_data = {
             "id": project_id,
             "name": name,
-            "type": type,
+            "type": project_type,
             "description": description,
             "created_at": datetime.now().isoformat(),
             "classes": [
@@ -139,9 +144,8 @@ class DatasetService:
             ]
         }
         self._save_metadata(project_id, project_data)
-        project_dir = self._get_project_dir(project_id)
         for cls in project_data["classes"]:
-            os.makedirs(os.path.join(project_dir, cls["name"]), exist_ok=True)
+            os.makedirs(self._get_class_dir(project_id, cls["name"]), exist_ok=True)
         return self.get_project(project_id)
 
     def reset_project(self, project_id: str) -> dict:
@@ -173,9 +177,8 @@ class DatasetService:
             ]
         }
         self._save_metadata(project_id, default_data)
-        p_dir = self._get_project_dir(project_id)
         for cls in default_data["classes"]:
-            os.makedirs(os.path.join(p_dir, cls["name"]), exist_ok=True)
+            os.makedirs(self._get_class_dir(project_id, cls["name"]), exist_ok=True)
         return default_data
 
 
@@ -203,14 +206,26 @@ class DatasetService:
         }
 
         project["classes"].append(new_class)
-        class_dir = os.path.join(self._get_project_dir(project_id), clean_name)
+        class_dir = self._get_class_dir(project_id, clean_name)
         os.makedirs(class_dir, exist_ok=True)
 
         self._save_metadata(project_id, project)
         return new_class
 
-    def _find_class_and_project(self, class_id: str) -> Tuple[Optional[str], Optional[dict], Optional[dict]]:
+    def _find_class_and_project(self, class_id: str, project_id: Optional[str] = None) -> Tuple[Optional[str], Optional[dict], Optional[dict]]:
         clean_target = class_id.strip()
+
+        # Fast direct lookup if project_id is provided
+        if project_id:
+            try:
+                p = self.get_project(project_id)
+                for cls in p.get("classes", []):
+                    if cls["id"] == clean_target or cls["name"].lower() == clean_target.lower():
+                        return project_id, cls, p
+            except Exception as e:
+                logger.warning(f"Failed direct class lookup for project '{project_id}': {e}")
+
+        # Fallback filesystem scan if project_id is missing or not found in specified project
         for proj_id in os.listdir(self.uploads_dir):
             if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
                 p = self.get_project(proj_id)
@@ -219,8 +234,8 @@ class DatasetService:
                         return proj_id, cls, p
         return None, None, None
 
-    def update_class(self, class_id: str, name: Optional[str] = None, disabled: Optional[bool] = None) -> dict:
-        target_project_id, target_class, project = self._find_class_and_project(class_id)
+    def update_class(self, class_id: str, name: Optional[str] = None, disabled: Optional[bool] = None, project_id: Optional[str] = None) -> dict:
+        target_project_id, target_class, project = self._find_class_and_project(class_id, project_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
@@ -233,8 +248,8 @@ class DatasetService:
                 if existing["id"] != class_id and existing["name"].lower() == new_name.lower():
                     raise HTTPException(status_code=400, detail=f"A class named '{new_name}' already exists in this project.")
 
-            old_dir = os.path.join(self._get_project_dir(target_project_id), old_name)
-            new_dir = os.path.join(self._get_project_dir(target_project_id), new_name)
+            old_dir = self._get_class_dir(target_project_id, old_name)
+            new_dir = self._get_class_dir(target_project_id, new_name)
 
             if os.path.exists(old_dir):
                 shutil.move(old_dir, new_dir)
@@ -242,8 +257,9 @@ class DatasetService:
                 os.makedirs(new_dir, exist_ok=True)
 
             target_class["name"] = new_name
+            safe_new = sanitize_filename(new_name)
             for img in target_class["images"]:
-                img["url"] = f"/uploads/{target_project_id}/{new_name}/{img['filename']}"
+                img["url"] = f"/uploads/{target_project_id}/{safe_new}/{img['filename']}"
 
         if disabled is not None:
             target_class["disabled"] = disabled
@@ -265,8 +281,8 @@ class DatasetService:
                 with open(training_meta_path, "r", encoding="utf-8") as f:
                     t_meta = json.load(f)
                 trained_at = t_meta.get("trained_at")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to read training metadata for project '{project_id}': {e}")
 
         return {
             "id": project["id"],
@@ -297,13 +313,11 @@ class DatasetService:
         new_dir = self._get_project_dir(new_id)
         os.makedirs(new_dir, exist_ok=True)
 
-        source_dir = self._get_project_dir(project_id)
-
         # Copy image class folders
         for cls in source_project["classes"]:
             cls_name = cls["name"]
-            src_cls_dir = os.path.join(source_dir, cls_name)
-            dst_cls_dir = os.path.join(new_dir, cls_name)
+            src_cls_dir = self._get_class_dir(project_id, cls_name)
+            dst_cls_dir = self._get_class_dir(new_id, cls_name)
             if os.path.exists(src_cls_dir):
                 shutil.copytree(src_cls_dir, dst_cls_dir)
             else:
@@ -317,8 +331,9 @@ class DatasetService:
 
         # Update image URLs to point to new project ID
         for cls in duplicated_project["classes"]:
+            safe_c = sanitize_filename(cls["name"])
             for img in cls.get("images", []):
-                img["url"] = f"/uploads/{new_id}/{cls['name']}/{img['filename']}"
+                img["url"] = f"/uploads/{new_id}/{safe_c}/{img['filename']}"
 
         self._save_metadata(new_id, duplicated_project)
         return duplicated_project
@@ -329,12 +344,12 @@ class DatasetService:
             shutil.rmtree(project_dir, ignore_errors=True)
         return {"success": True, "message": f"Project '{project_id}' deleted successfully."}
 
-    def delete_class(self, class_id: str) -> dict:
-        target_project_id, target_class, project = self._find_class_and_project(class_id)
+    def delete_class(self, class_id: str, project_id: Optional[str] = None) -> dict:
+        target_project_id, target_class, project = self._find_class_and_project(class_id, project_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
-        class_dir = os.path.join(self._get_project_dir(target_project_id), target_class["name"])
+        class_dir = self._get_class_dir(target_project_id, target_class["name"])
         if os.path.exists(class_dir):
             shutil.rmtree(class_dir, ignore_errors=True)
 
@@ -342,12 +357,13 @@ class DatasetService:
         self._save_metadata(target_project_id, project)
         return {"success": True, "class_id": class_id}
 
-    async def upload_images(self, class_id: str, files: List[UploadFile]) -> List[dict]:
-        target_project_id, target_class, project = self._find_class_and_project(class_id)
+    async def upload_images(self, class_id: str, files: List[UploadFile], project_id: Optional[str] = None) -> List[dict]:
+        target_project_id, target_class, project = self._find_class_and_project(class_id, project_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
-        class_dir = os.path.join(self._get_project_dir(target_project_id), target_class["name"])
+        safe_c = sanitize_filename(target_class["name"])
+        class_dir = self._get_class_dir(target_project_id, target_class["name"])
         os.makedirs(class_dir, exist_ok=True)
 
         saved_items = []
@@ -367,7 +383,7 @@ class DatasetService:
             item = {
                 "id": img_id,
                 "filename": safe_filename,
-                "url": f"/uploads/{target_project_id}/{target_class['name']}/{safe_filename}",
+                "url": f"/uploads/{target_project_id}/{safe_c}/{safe_filename}",
                 "class_id": target_class["id"],
                 "created_at": datetime.now().isoformat()
             }
@@ -378,12 +394,13 @@ class DatasetService:
         self._save_metadata(target_project_id, project)
         return saved_items
 
-    def capture_image(self, class_id: str, base64_data: str) -> dict:
-        target_project_id, target_class, project = self._find_class_and_project(class_id)
+    def capture_image(self, class_id: str, base64_data: str, project_id: Optional[str] = None) -> dict:
+        target_project_id, target_class, project = self._find_class_and_project(class_id, project_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
-        class_dir = os.path.join(self._get_project_dir(target_project_id), target_class["name"])
+        safe_c = sanitize_filename(target_class["name"])
+        class_dir = self._get_class_dir(target_project_id, target_class["name"])
         os.makedirs(class_dir, exist_ok=True)
 
         if "," in base64_data:
@@ -411,7 +428,7 @@ class DatasetService:
         item = {
             "id": img_id,
             "filename": safe_filename,
-            "url": f"/uploads/{target_project_id}/{target_class['name']}/{safe_filename}",
+            "url": f"/uploads/{target_project_id}/{safe_c}/{safe_filename}",
             "class_id": target_class["id"],
             "created_at": datetime.now().isoformat()
         }
@@ -421,37 +438,54 @@ class DatasetService:
         self._save_metadata(target_project_id, project)
         return item
 
-    def delete_image(self, image_id: str) -> dict:
+    def delete_image(self, image_id: str, project_id: Optional[str] = None) -> dict:
         target_project_id = None
         target_class = None
         target_image = None
         project = None
 
-        for proj_id in os.listdir(self.uploads_dir):
-            if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
-                p = self.get_project(proj_id)
-                for cls in p["classes"]:
+        if project_id:
+            try:
+                p = self.get_project(project_id)
+                for cls in p.get("classes", []):
                     for img in cls.get("images", []):
                         if img["id"] == image_id:
-                            target_project_id = proj_id
+                            target_project_id = project_id
                             target_class = cls
                             target_image = img
                             project = p
                             break
                     if target_image:
                         break
-                if target_image:
-                    break
+            except Exception as e:
+                logger.warning(f"Failed direct image lookup for project '{project_id}': {e}")
+
+        if not target_image:
+            for proj_id in os.listdir(self.uploads_dir):
+                if os.path.isdir(os.path.join(self.uploads_dir, proj_id)):
+                    p = self.get_project(proj_id)
+                    for cls in p.get("classes", []):
+                        for img in cls.get("images", []):
+                            if img["id"] == image_id:
+                                target_project_id = proj_id
+                                target_class = cls
+                                target_image = img
+                                project = p
+                                break
+                        if target_image:
+                            break
+                    if target_image:
+                        break
 
         if not target_image or not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Image not found")
 
-        file_path = os.path.join(self._get_project_dir(target_project_id), target_class["name"], target_image["filename"])
+        file_path = os.path.join(self._get_class_dir(target_project_id, target_class["name"]), target_image["filename"])
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to delete image file '{file_path}': {e}")
 
         target_class["images"] = [i for i in target_class["images"] if i["id"] != image_id]
         target_class["imageCount"] = len(target_class["images"])
@@ -459,12 +493,12 @@ class DatasetService:
 
         return {"success": True, "image_id": image_id}
 
-    def clear_class_images(self, class_id: str) -> dict:
-        target_project_id, target_class, project = self._find_class_and_project(class_id)
+    def clear_class_images(self, class_id: str, project_id: Optional[str] = None) -> dict:
+        target_project_id, target_class, project = self._find_class_and_project(class_id, project_id)
         if not target_class or not project or not target_project_id:
             raise HTTPException(status_code=404, detail="Class not found")
 
-        class_dir = os.path.join(self._get_project_dir(target_project_id), target_class["name"])
+        class_dir = self._get_class_dir(target_project_id, target_class["name"])
         deleted_count = len(target_class.get("images", []))
 
         if os.path.exists(class_dir):
@@ -473,8 +507,8 @@ class DatasetService:
                 if ext in ALLOWED_EXTENSIONS:
                     try:
                         os.remove(os.path.join(class_dir, f))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to remove sample file in '{class_dir}': {e}")
 
         target_class["images"] = []
         target_class["imageCount"] = 0
@@ -508,8 +542,8 @@ class DatasetService:
                 decoded = base64.b64decode(encoded)
                 if decoded:
                     return decoded, ext
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to decode base64 image data: {e}")
         return None
 
     def import_tm_project(self, project_id: str, file_bytes: bytes, filename: str) -> dict:
@@ -521,25 +555,23 @@ class DatasetService:
         project_name = os.path.splitext(filename)[0] or "Imported Project"
         classes_meta_map = {}
         imported_images = {}
-        model_keras_bytes = None
-        training_meta_bytes = None
 
         is_zip = False
         try:
-            if file_bytes.startswith(b"PK\x03\x04"):
+            if zipfile.is_zipfile(io.BytesIO(file_bytes)):
                 is_zip = True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to check zip header for uploaded file '{filename}': {e}")
 
         if is_zip:
             try:
                 with zipfile.ZipFile(io.BytesIO(file_bytes), "r") as zf:
-                    # 1. Read metadata.json or json manifest if present for project name & class colors/disabled state
+                    # 1. Read metadata.json, manifest.json, or project.json if present
                     for member in zf.infolist():
                         if member.is_dir():
                             continue
                         m_name = os.path.basename(member.filename).lower()
-                        if m_name in ("metadata.json", "project.json"):
+                        if m_name in ("metadata.json", "project.json", "manifest.json"):
                             try:
                                 raw_data = zf.read(member).decode("utf-8", errors="ignore")
                                 data = json.loads(raw_data)
@@ -558,18 +590,18 @@ class DatasetService:
                                                     "color": c.get("color"),
                                                     "disabled": c.get("disabled", False)
                                                 }
-                            except Exception:
-                                pass
-                        elif m_name == "model.keras":
-                            try:
-                                model_keras_bytes = zf.read(member)
-                            except Exception:
-                                pass
-                        elif m_name == "training_metadata.json":
-                            try:
-                                training_meta_bytes = zf.read(member)
-                            except Exception:
-                                pass
+
+                                    labels = data.get("labels") or data.get("userLabels")
+                                    if isinstance(labels, list):
+                                        for idx, lstr in enumerate(labels):
+                                            if isinstance(lstr, str) and lstr.strip():
+                                                if lstr not in classes_meta_map:
+                                                    classes_meta_map[lstr] = {
+                                                        "color": CLASS_COLORS[idx % len(CLASS_COLORS)],
+                                                        "disabled": False
+                                                    }
+                            except Exception as e:
+                                logger.warning(f"Failed to parse metadata in imported archive '{filename}': {e}")
 
                     # 2. Extract image samples directly from archive structure
                     for member in zf.infolist():
@@ -583,7 +615,7 @@ class DatasetService:
                             if "-!-" in base_name:
                                 class_name = base_name.split("-!-")[0].strip()
                             else:
-                                parts = [p for p in fname.split("/") if p]
+                                parts = [p for p in fname.replace("\\", "/").split("/") if p]
                                 if len(parts) >= 2:
                                     class_name = parts[-2].strip()
 
@@ -625,7 +657,8 @@ class DatasetService:
             color = meta_info.get("color") or CLASS_COLORS[idx % len(CLASS_COLORS)]
             disabled = meta_info.get("disabled", False)
             class_id = f"class-{uuid.uuid4().hex[:6]}"
-            class_dir = os.path.join(project_dir, c_name)
+            safe_c_name = sanitize_filename(c_name)
+            class_dir = os.path.join(project_dir, safe_c_name)
             os.makedirs(class_dir, exist_ok=True)
 
             images_meta = []
@@ -640,7 +673,7 @@ class DatasetService:
                 images_meta.append({
                     "id": img_id,
                     "filename": safe_filename,
-                    "url": f"/uploads/{project_id}/{c_name}/{safe_filename}",
+                    "url": f"/uploads/{project_id}/{safe_c_name}/{safe_filename}",
                     "class_id": class_id,
                     "created_at": datetime.now().isoformat()
                 })
@@ -674,9 +707,10 @@ class DatasetService:
         if os.path.exists(t_meta_file):
             try:
                 os.remove(t_meta_file)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to remove old training_metadata.json for imported project '{project_id}': {e}")
 
         return self.get_project(project_id)
+
 
 

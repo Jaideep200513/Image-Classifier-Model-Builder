@@ -46,7 +46,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
   // 3. Rename Class Mutation
   const renameClassMutation = useMutation({
     mutationFn: ({ classId, name }: { classId: string; name: string }) =>
-      api.updateClass(classId, { name }),
+      api.updateClass(classId, { name }, projectId),
     onSuccess: (updated) => {
       toast.success(`Renamed to "${updated.name}"`);
       invalidateProject();
@@ -59,7 +59,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
   // 4. Toggle Disable Class Mutation
   const toggleDisableMutation = useMutation({
     mutationFn: ({ classId, disabled }: { classId: string; disabled: boolean }) =>
-      api.updateClass(classId, { disabled }),
+      api.updateClass(classId, { disabled }, projectId),
     onSuccess: (updated) => {
       toast.info(`Class "${updated.name}" ${updated.disabled ? "disabled" : "enabled"}`);
       invalidateProject();
@@ -71,7 +71,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
 
   // 5. Delete Class Mutation
   const deleteClassMutation = useMutation({
-    mutationFn: (classId: string) => api.deleteClass(classId),
+    mutationFn: (classId: string) => api.deleteClass(classId, projectId),
     onSuccess: () => {
       toast.success("Class deleted");
       invalidateProject();
@@ -84,7 +84,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
   // 6. Upload Images Mutation
   const uploadImagesMutation = useMutation({
     mutationFn: ({ classId, files }: { classId: string; files: File[] }) =>
-      api.uploadImages(classId, files),
+      api.uploadImages(classId, files, projectId),
     onSuccess: (items) => {
       toast.success(`Uploaded ${items.length} image${items.length > 1 ? "s" : ""}`);
       invalidateProject();
@@ -97,7 +97,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
   // 7. Capture Image Mutation
   const captureImageMutation = useMutation({
     mutationFn: ({ classId, base64Image }: { classId: string; base64Image: string }) =>
-      api.captureImage(classId, base64Image),
+      api.captureImage(classId, base64Image, projectId),
     onSuccess: () => {
       invalidateProject();
     },
@@ -108,7 +108,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
 
   // 8. Delete Image Mutation
   const deleteImageMutation = useMutation({
-    mutationFn: (imageId: string) => api.deleteImage(imageId),
+    mutationFn: (imageId: string) => api.deleteImage(imageId, projectId),
     onSuccess: () => {
       toast.success("Image removed");
       invalidateProject();
@@ -120,7 +120,7 @@ export function useProjectData(projectId: string = DEFAULT_PROJECT_ID) {
 
   // 9. Clear All Class Images Mutation
   const clearClassImagesMutation = useMutation({
-    mutationFn: (classId: string) => api.clearClassImages(classId),
+    mutationFn: (classId: string) => api.clearClassImages(classId, projectId),
     onSuccess: (res) => {
       toast.success(`Cleared ${res.deleted_count} sample${res.deleted_count !== 1 ? "s" : ""}`);
       invalidateProject();

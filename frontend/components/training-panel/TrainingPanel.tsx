@@ -22,9 +22,10 @@ const FIELDS: { id: string; label: string; desc: string; field: keyof TrainingCo
 
 interface TrainingPanelProps {
   classes?: ImageClass[];
+  projectId?: string;
 }
 
-export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
+export default function TrainingPanel({ classes = [], projectId = "default-project" }: TrainingPanelProps) {
   const [config, setConfig] = useState<TrainingConfig>(DEFAULT_CONFIG);
   const [inputs, setInputs] = useState<{ epochs: string; batchSize: string; learningRate: string }>({
     epochs: "50",
@@ -47,9 +48,9 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
     isCancelling,
     startTraining,
     cancelTraining,
-  } = useTraining();
+  } = useTraining(projectId);
 
-  // Validation logic (Phase 3 requirements: >=2 enabled classes, each having >=10 images)
+  // Validation logic (>=2 enabled classes, each having >=1 image)
   const enabledClasses = classes.filter((c) => !c.disabled);
   const hasMinClasses = enabledClasses.length >= 2;
 
@@ -58,7 +59,7 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
     count: c.images?.length || c.imageCount || 0,
   }));
 
-  const invalidClasses = classesWithCounts.filter((c) => c.count < 10);
+  const invalidClasses = classesWithCounts.filter((c) => c.count < 1);
   const allEnabledHaveEnoughImages = enabledClasses.length > 0 && invalidClasses.length === 0;
   const isValidDataset = hasMinClasses && allEnabledHaveEnoughImages;
 
@@ -161,8 +162,8 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
               ) : !allEnabledHaveEnoughImages ? (
                 <p className="mt-0.5 text-xs font-medium opacity-90">
                   {invalidClasses.length === 1
-                    ? `Class "${invalidClasses[0].name}" needs at least 10 images (currently has ${invalidClasses[0].count}).`
-                    : `Each enabled class requires at least 10 images.`}
+                    ? `Class "${invalidClasses[0].name}" needs at least 1 image (currently has 0).`
+                    : `Each enabled class requires at least 1 image.`}
                 </p>
               ) : (
                 <p className="mt-0.5 text-xs font-medium opacity-90">
@@ -333,6 +334,7 @@ export default function TrainingPanel({ classes = [] }: TrainingPanelProps) {
       <UnderTheHoodModal
         isOpen={showUnderTheHoodModal}
         onClose={() => setShowUnderTheHoodModal(false)}
+        projectId={projectId}
       />
     </motion.div>
   );

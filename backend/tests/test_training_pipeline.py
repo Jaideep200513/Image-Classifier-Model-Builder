@@ -13,7 +13,7 @@ def test_full_training_flow():
         ds = DatasetService(uploads_dir=tmp_dir)
         ts = TrainingService(uploads_dir=tmp_dir)
 
-        proj = ds.create_project(name="Pipeline Test", type="image")
+        proj = ds.create_project(name="Pipeline Test", project_type="image")
         proj_id = proj["id"]
 
         # Create 10 images in Class 1 & Class 2

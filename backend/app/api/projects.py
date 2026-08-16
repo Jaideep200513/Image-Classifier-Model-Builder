@@ -11,7 +11,7 @@ def get_dataset_service() -> DatasetService:
 
 @router.post("", response_model=Project)
 def create_project(req: CreateProjectRequest, service: DatasetService = Depends(get_dataset_service)):
-    return service.create_project(name=req.name, type=req.type, description=req.description)
+    return service.create_project(name=req.name, project_type=req.type, description=req.description)
 
 @router.get("/{id}", response_model=Project)
 def get_project(id: str, service: DatasetService = Depends(get_dataset_service)):

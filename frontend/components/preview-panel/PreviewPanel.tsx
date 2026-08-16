@@ -14,9 +14,10 @@ const INPUT_SOURCES: { value: InputSource; label: string }[] = [
 
 interface PreviewPanelProps {
   classes?: ImageClass[];
+  projectId?: string;
 }
 
-export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
+export default function PreviewPanel({ classes = [], projectId = "default-project" }: PreviewPanelProps) {
   const [inputSource, setInputSource] = useState<InputSource>("webcam");
   const [inputOn, setInputOn] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -36,7 +37,7 @@ export default function PreviewPanel({ classes = [] }: PreviewPanelProps) {
     predictImage,
     predictWebcam,
     clearPrediction,
-  } = useInference();
+  } = useInference(projectId);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
