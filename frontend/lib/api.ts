@@ -8,6 +8,7 @@ import {
   PredictionResponse,
   ProjectStats,
   ExportInfo,
+  ProjectHistoryItem,
 } from "@/types";
 
 function getApiBase(): string {
@@ -55,7 +56,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Project
+  getAllProjects: () => request<ProjectHistoryItem[]>("/projects"),
   getProject: (projectId: string) => request<Project>(`/projects/${projectId}`),
+
   createProject: (name = "Image Project") =>
     request<Project>("/projects", {
       method: "POST",

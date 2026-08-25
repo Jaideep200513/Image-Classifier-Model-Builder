@@ -157,3 +157,27 @@ export interface UnderTheHoodAnalytics {
   accuracy_per_class: ClassAccuracyStat[];
   confusion_matrix: ConfusionMatrixData;
 }
+
+export interface HistoryClassSummary {
+  id: string;
+  name: string;
+  color: string;
+  disabled: boolean;
+  image_count: number;
+}
+
+export interface ProjectHistoryItem {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  created_at: string;
+  classes_count: number;
+  total_images_count: number;
+  has_trained_model: boolean;
+  trained_at?: string | null;
+  metrics?: TrainingMetrics | null;
+  under_the_hood?: UnderTheHoodAnalytics | null;
+  classes: HistoryClassSummary[];
+}
+
