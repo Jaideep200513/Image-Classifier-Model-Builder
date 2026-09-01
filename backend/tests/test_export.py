@@ -43,7 +43,7 @@ def test_export_and_project_management():
     start = time.time()
     while time.time() - start < 60:
         st = client.get(f"/projects/{proj_id}/train/status").json()
-        if st["status"] == "completed":
+        if st["status"] in ("completed", "error"):
             break
         time.sleep(1)
 

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { ArrowLeft, Download, Info, Edit2, Check } from "lucide-react";
+import { ArrowLeft, Download, Info, Edit2, Check, History } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { motion } from "motion/react";
+
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +16,10 @@ import PreviewPanel from "@/components/preview-panel/PreviewPanel";
 import ConfirmLeaveModal from "@/components/dataset-panel/ConfirmLeaveModal";
 import ExportModal from "@/components/export-modal/ExportModal";
 import ProjectInfoModal from "@/components/project-modal/ProjectInfoModal";
+import HistoryModal from "@/components/history-modal/HistoryModal";
 import { useProjectData } from "@/hooks/useProjectData";
 import { api } from "@/lib/api";
+
 
 const DEFAULT_PROJECT_ID = "default-project";
 
@@ -39,7 +43,9 @@ function WorkspaceContent() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showProjectInfoModal, setShowProjectInfoModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [projectNameInput, setProjectNameInput] = useState("");
 
@@ -104,18 +110,12 @@ function WorkspaceContent() {
     };
   }, []);
 
-  const handleConfirmLeaveAndErase = async () => {
-    setIsResetting(true);
-    try {
-      await resetProject();
-      queryClient.invalidateQueries({ queryKey: ["trainingStatus", projectId] });
-      queryClient.invalidateQueries({ queryKey: ["modelStatus", projectId] });
-      setShowLeaveModal(false);
-      router.push("/new-project");
-    } catch {
-      setIsResetting(false);
-    }
+  const handleConfirmLeave = () => {
+    setShowLeaveModal(false);
+    queryClient.invalidateQueries({ queryKey: ["allProjectsHistory"] });
+    router.push("/new-project");
   };
+
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ backgroundColor: "#eef0f8" }}>
@@ -194,6 +194,19 @@ function WorkspaceContent() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/history">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex gap-1.5 text-xs cursor-pointer border-slate-200 hover:bg-slate-50 text-slate-700"
+              id="workspace-history-btn"
+            >
+              <History className="h-3.5 w-3.5 text-violet-600" />
+              History
+            </Button>
+          </Link>
+
+
           <Button
             variant="outline"
             size="sm"
@@ -216,6 +229,12 @@ function WorkspaceContent() {
           </Button>
         </div>
       </motion.header>
+
+      <HistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+      />
+
 
       {/* ── Full-width canvas ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -301,9 +320,10 @@ function WorkspaceContent() {
       <ConfirmLeaveModal
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
-        onConfirm={handleConfirmLeaveAndErase}
+        onConfirm={handleConfirmLeave}
         isResetting={isResetting}
       />
+
 
       {/* Model Export Modal */}
       <ExportModal

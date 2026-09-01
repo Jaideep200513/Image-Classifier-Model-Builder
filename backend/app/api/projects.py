@@ -1,5 +1,6 @@
+from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File
-from app.schemas.project import Project, CreateProjectRequest, CreateClassRequest, ImageClass
+from app.schemas.project import Project, CreateProjectRequest, CreateClassRequest, ImageClass, ProjectHistoryItem
 from app.schemas.export import ProjectStatsResponse, UpdateProjectRequest
 from app.services.dataset_service import DatasetService
 
@@ -9,7 +10,12 @@ def get_dataset_service() -> DatasetService:
     from app.main import dataset_service
     return dataset_service
 
+@router.get("", response_model=List[ProjectHistoryItem])
+def list_projects(service: DatasetService = Depends(get_dataset_service)):
+    return service.list_all_projects()
+
 @router.post("", response_model=Project)
+
 def create_project(req: CreateProjectRequest, service: DatasetService = Depends(get_dataset_service)):
     return service.create_project(name=req.name, project_type=req.type, description=req.description)
 

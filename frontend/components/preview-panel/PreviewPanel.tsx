@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, Upload, Eye, ChevronDown, CheckCircle2, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { Camera, Upload, Eye, ChevronDown, CheckCircle2, AlertCircle, Loader2, Sparkles, Crop, RotateCcw, Edit2 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { InputSource, ClassPrediction, ImageClass } from "@/types";
 import { useInference } from "@/hooks/useInference";
+import InteractiveRoiModal from "./InteractiveRoiModal";
 
 const INPUT_SOURCES: { value: InputSource; label: string }[] = [
   { value: "webcam", label: "Webcam" },
@@ -21,9 +22,15 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
   const [inputSource, setInputSource] = useState<InputSource>("webcam");
   const [inputOn, setInputOn] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Image & ROI state management
+  const [originalImageSrc, setOriginalImageSrc] = useState<string | null>(null);
+  const [activeImageSrc, setActiveImageSrc] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [croppedFile, setCroppedFile] = useState<File | null>(null);
+  const [isRoiCropped, setIsRoiCropped] = useState(false);
+  const [showRoiModal, setShowRoiModal] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -62,7 +69,6 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
         });
       } catch (err: unknown) {
         const error = err as { name?: string };
-        // Fallback to basic video constraint if camera is busy or overconstrained
         if (error.name === "NotReadableError" || error.name === "OverconstrainedError") {
           stream = await navigator.mediaDevices.getUserMedia({ video: true });
         } else {
@@ -86,11 +92,10 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
     }
   }, [stopCamera]);
 
-  // Listen for webcam modal open/close events to yield camera stream
   useEffect(() => {
     const handleModalOpen = () => stopCamera();
     const handleModalClose = () => {
-      if (inputOn && inputSource === "webcam" && hasModel) {
+      if (inputOn && inputSource === "webcam" && hasModel && !isRoiCropped) {
         startCamera();
       }
     };
@@ -102,11 +107,10 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
       window.removeEventListener("webcam-modal-open", handleModalOpen);
       window.removeEventListener("webcam-modal-close", handleModalClose);
     };
-  }, [inputOn, inputSource, hasModel, startCamera, stopCamera]);
+  }, [inputOn, inputSource, hasModel, isRoiCropped, startCamera, stopCamera]);
 
-  // Manage webcam stream when inputOn and webcam mode change
   useEffect(() => {
-    if (inputOn && inputSource === "webcam" && hasModel) {
+    if (inputOn && inputSource === "webcam" && hasModel && !isRoiCropped) {
       startCamera();
     } else {
       stopCamera();
@@ -114,60 +118,107 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
     return () => {
       stopCamera();
     };
-  }, [inputOn, inputSource, hasModel, startCamera, stopCamera]);
+  }, [inputOn, inputSource, hasModel, isRoiCropped, startCamera, stopCamera]);
 
-  async function handleCaptureAndPredict() {
+  // Capture current webcam frame into data URL
+  const captureWebcamFrame = (): string | null => {
+    if (!videoRef.current || !canvasRef.current) return null;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.95);
+  };
+
+  // Execute inference on current active target (full image or cropped ROI)
+  async function handlePredict() {
     if (!hasModel || isPredicting) return;
 
-    if (inputSource === "webcam") {
-      if (!videoRef.current || !canvasRef.current) return;
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 300;
-      canvas.height = video.videoHeight || 300;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const base64Image = canvas.toDataURL("image/jpeg", 0.9);
-      setPreviewImage(base64Image);
-      await predictWebcam(base64Image);
+    if (croppedFile) {
+      await predictImage(croppedFile);
+    } else if (isRoiCropped && activeImageSrc) {
+      await predictWebcam(activeImageSrc);
+    } else if (inputSource === "webcam") {
+      const frameBase64 = activeImageSrc || captureWebcamFrame();
+      if (frameBase64) {
+        setOriginalImageSrc(frameBase64);
+        setActiveImageSrc(frameBase64);
+        await predictWebcam(frameBase64);
+      }
     } else if (uploadedFile) {
       await predictImage(uploadedFile);
     }
   }
 
+  // Handle open ROI crop modal
+  const handleOpenRoiModal = () => {
+    if (inputSource === "webcam" && !originalImageSrc) {
+      const frame = captureWebcamFrame();
+      if (!frame) return;
+      setOriginalImageSrc(frame);
+      if (!isRoiCropped) setActiveImageSrc(frame);
+    }
+    setShowRoiModal(true);
+  };
+
+  // Handle ROI crop apply callback
+  const handleApplyRoiCrop = (croppedDataUrl: string, file: File) => {
+    setActiveImageSrc(croppedDataUrl);
+    setCroppedFile(file);
+    setIsRoiCropped(true);
+    clearPrediction();
+  };
+
+  // Reset to full uncropped image
+  const handleResetToFullImage = () => {
+    setActiveImageSrc(originalImageSrc);
+    setCroppedFile(null);
+    setIsRoiCropped(false);
+    clearPrediction();
+    if (inputSource === "webcam" && inputOn && hasModel) {
+      startCamera();
+    }
+  };
+
   function handleFileSelect(file: File) {
     if (!file.type.startsWith("image/")) return;
     setUploadedFile(file);
+    setCroppedFile(null);
+    setIsRoiCropped(false);
+
     const objectUrl = URL.createObjectURL(file);
-    setPreviewImage(objectUrl);
+    setOriginalImageSrc(objectUrl);
+    setActiveImageSrc(objectUrl);
     clearPrediction();
+
     if (hasModel) {
       predictImage(file);
     }
   }
 
-  // Synchronize class names dynamically with current project dataset classes
   const enabledClasses = classes.filter((c) => !c.disabled);
 
   const mappedPredictions: ClassPrediction[] = predictionResult
     ? predictionResult.predictions.map((p, idx) => {
-        const matched =
-          classes.find((c) => c.id === p.class_id || c.name.toLowerCase() === p.class_name.toLowerCase()) ||
-          enabledClasses[idx];
-        return {
-          ...p,
-          class_name: matched ? matched.name : p.class_name,
-          color: matched ? matched.color : p.color,
-        };
-      })
+      const matched =
+        classes.find((c) => c.id === p.class_id || c.name.toLowerCase() === p.class_name.toLowerCase()) ||
+        enabledClasses[idx];
+      return {
+        ...p,
+        class_name: matched ? matched.name : p.class_name,
+        color: matched ? matched.color : p.color,
+      };
+    })
     : enabledClasses.map((c, idx) => ({
-        class_id: c.id,
-        class_name: c.name,
-        confidence: 0,
-        is_highest: idx === 0,
-        color: c.color,
-      }));
+      class_id: c.id,
+      class_name: c.name,
+      confidence: 0,
+      is_highest: idx === 0,
+      color: c.color,
+    }));
 
   const topPredictedName = predictionResult
     ? (mappedPredictions.find((p) => p.is_highest) || mappedPredictions[0])?.class_name || predictionResult.predicted_class_name
@@ -196,11 +247,10 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
 
         {/* Model Availability Alert */}
         <div
-          className={`rounded-xl border p-3 text-xs leading-relaxed transition-colors ${
-            hasModel
+          className={`rounded-xl border p-3 text-xs leading-relaxed transition-colors ${hasModel
               ? "bg-emerald-50/80 border-emerald-200 text-emerald-800"
               : "bg-amber-50/80 border-amber-200 text-amber-900"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             {hasModel ? (
@@ -221,13 +271,16 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
           </div>
         </div>
 
-        {/* Input row — "Input [toggle] ON | Webcam ∨" */}
+        {/* Input row */}
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-muted-foreground flex-shrink-0">Input</span>
 
           {/* On/Off toggle */}
           <button
-            onClick={() => setInputOn((v) => !v)}
+            onClick={() => {
+              setInputOn((v) => !v);
+              clearPrediction();
+            }}
             disabled={!hasModel}
             className={cn(
               "relative flex h-5 w-9 flex-shrink-0 items-center rounded-full border-2 transition-colors duration-200",
@@ -254,7 +307,11 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
               value={inputSource}
               onChange={(e) => {
                 setInputSource(e.target.value as InputSource);
-                setPreviewImage(null);
+                setOriginalImageSrc(null);
+                setActiveImageSrc(null);
+                setUploadedFile(null);
+                setCroppedFile(null);
+                setIsRoiCropped(false);
                 clearPrediction();
               }}
               disabled={!hasModel}
@@ -272,9 +329,9 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
         {/* Hidden canvas for webcam capture */}
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Webcam / Upload Display Area */}
+        {/* Display Area */}
         <motion.div
-          key={inputSource}
+          key={inputSource + (isRoiCropped ? "-cropped" : "")}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
@@ -301,16 +358,29 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
               <p className="text-xs font-semibold text-foreground">Input is OFF</p>
               <p className="text-[11px] text-muted-foreground mt-1">Toggle input ON to start testing predictions.</p>
             </div>
+          ) : isRoiCropped && activeImageSrc ? (
+            /* Active ROI Cropped Target Display */
+            <div className="relative w-full h-full flex items-center justify-center bg-black/90 p-2">
+              <img src={activeImageSrc} alt="Cropped ROI" className="max-w-full max-h-full object-contain rounded-lg shadow-md" />
+              <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-600/90 text-white text-[10px] font-bold shadow">
+                <Crop className="h-3 w-3" />
+                ROI Active (Cropped)
+              </div>
+            </div>
           ) : inputSource === "webcam" ? (
             <div className="relative w-full h-full flex items-center justify-center bg-black">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-              {!cameraActive && (
+              {activeImageSrc && !cameraActive ? (
+                <img src={activeImageSrc} alt="Captured frame" className="w-full h-full object-contain" />
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              )}
+              {!cameraActive && !activeImageSrc && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-white text-xs p-4 text-center space-y-2">
                   <AlertCircle className="h-6 w-6 text-amber-400 mx-auto" />
                   <p className="font-semibold text-slate-200">
@@ -341,8 +411,8 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
                   if (e.target.files?.[0]) handleFileSelect(e.target.files[0]);
                 }}
               />
-              {previewImage ? (
-                <img src={previewImage} alt="Upload preview" className="w-full h-full object-contain rounded-lg" />
+              {activeImageSrc ? (
+                <img src={activeImageSrc} alt="Upload preview" className="w-full h-full object-contain rounded-lg" />
               ) : (
                 <div className="text-center text-muted-foreground">
                   <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
@@ -356,36 +426,86 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
           )}
         </motion.div>
 
-        {/* Action Button: Predict / Capture & Predict */}
+        {/* Action Button Controls (ROI & Predict) */}
         {hasModel && inputOn && (
-          <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
-            <button
-              onClick={handleCaptureAndPredict}
-              disabled={isPredicting || (inputSource === "upload" && !uploadedFile)}
-              className={cn(
-                "btn-purple w-full flex items-center justify-center gap-2 text-xs py-2 transition-all cursor-pointer",
-                isPredicting || (inputSource === "upload" && !uploadedFile) ? "opacity-60 cursor-not-allowed" : ""
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              {/* ROI Crop / Edit Button */}
+              <button
+                onClick={handleOpenRoiModal}
+                disabled={isPredicting || (inputSource === "upload" && !originalImageSrc)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 text-xs py-2 font-semibold rounded-xl border transition-all cursor-pointer",
+                  isRoiCropped
+                    ? "border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                  isPredicting || (inputSource === "upload" && !originalImageSrc) ? "opacity-50 cursor-not-allowed" : ""
+                )}
+                id="crop-roi-btn"
+              >
+                {isRoiCropped ? (
+                  <>
+                    <Edit2 className="h-3.5 w-3.5 text-purple-600" />
+                    Edit ROI
+                  </>
+                ) : (
+                  <>
+                    <Crop className="h-3.5 w-3.5 text-purple-600" />
+                    Crop ROI
+                  </>
+                )}
+              </button>
+
+              {/* Reset to Full Image Button (when ROI active) */}
+              {isRoiCropped && (
+                <button
+                  onClick={handleResetToFullImage}
+                  disabled={isPredicting}
+                  className="flex items-center justify-center gap-1 text-xs py-2 px-3 font-medium rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  id="reset-roi-btn"
+                  title="Reset to original uncropped image"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset
+                </button>
               )}
-              id="run-predict-btn"
-            >
-              {isPredicting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Running Inference...
-                </>
-              ) : inputSource === "webcam" ? (
-                <>
-                  <Camera className="h-4 w-4" />
-                  Capture &amp; Predict
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Predict Image
-                </>
-              )}
-            </button>
-          </motion.div>
+            </div>
+
+            {/* Predict Button */}
+            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+              <button
+                onClick={handlePredict}
+                disabled={isPredicting || (inputSource === "upload" && !activeImageSrc)}
+                className={cn(
+                  "btn-purple w-full flex items-center justify-center gap-2 text-xs py-2.5 transition-all cursor-pointer shadow-sm",
+                  isPredicting || (inputSource === "upload" && !activeImageSrc) ? "opacity-60 cursor-not-allowed" : ""
+                )}
+                id="run-predict-btn"
+              >
+                {isPredicting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Running Inference...
+                  </>
+                ) : isRoiCropped ? (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Predict Cropped ROI
+                  </>
+                ) : inputSource === "webcam" ? (
+                  <>
+                    <Camera className="h-4 w-4" />
+                    Capture &amp; Predict
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Predict Image
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </div>
         )}
 
         {/* Down arrow */}
@@ -430,11 +550,19 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
           </div>
         </div>
       </div>
+
+      {/* Interactive ROI Selection Modal */}
+      {originalImageSrc && (
+        <InteractiveRoiModal
+          isOpen={showRoiModal}
+          imageSrc={originalImageSrc}
+          onClose={() => setShowRoiModal(false)}
+          onApplyCrop={handleApplyRoiCrop}
+        />
+      )}
     </motion.div>
   );
 }
-
-// ── Output Bar for Class Confidence ──────────────────────────────────────────
 
 function OutputBar({ prediction, index }: { prediction: ClassPrediction; index: number }) {
   return (
@@ -444,12 +572,10 @@ function OutputBar({ prediction, index }: { prediction: ClassPrediction; index: 
       transition={{ duration: 0.3, delay: index * 0.05 }}
       className="flex items-center gap-2"
     >
-      {/* Class name */}
       <span className="w-20 flex-shrink-0 text-xs font-semibold truncate text-foreground">
         {prediction.class_name}
       </span>
 
-      {/* Bar track */}
       <div className="relative flex-1 h-6 overflow-hidden rounded-md bg-slate-100 border border-slate-200">
         <motion.div
           className={cn(
@@ -460,7 +586,6 @@ function OutputBar({ prediction, index }: { prediction: ClassPrediction; index: 
           animate={{ width: `${prediction.confidence}%` }}
           transition={{ duration: 0.5, delay: index * 0.05, ease: "easeOut" }}
         />
-        {/* Percentage text */}
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-700 tabular-nums">
           {prediction.confidence.toFixed(1)}%
         </span>

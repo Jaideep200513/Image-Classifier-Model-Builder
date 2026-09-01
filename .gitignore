@@ -6,9 +6,12 @@ frontend/.env.local
 
 # Python cache
 __pycache__/
+**/__pycache__/
+*.pyc
 *.py[cod]
 *.pyo
 .pytest_cache/
+
 
 # Uploads and trained models (runtime data)
 backend/uploads/

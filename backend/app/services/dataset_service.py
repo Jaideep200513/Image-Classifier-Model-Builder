@@ -31,7 +31,8 @@ class DatasetService:
         os.makedirs(self.uploads_dir, exist_ok=True)
 
     def _get_project_dir(self, project_id: str) -> str:
-        project_dir = os.path.join(self.uploads_dir, project_id)
+        safe_pid = sanitize_filename(project_id)
+        project_dir = os.path.join(self.uploads_dir, safe_pid)
         os.makedirs(project_dir, exist_ok=True)
         return project_dir
 
@@ -118,11 +119,66 @@ class DatasetService:
         self._save_metadata(project_id, project)
         return project
 
+    def _validate_unique_project_name(self, name: str, exclude_project_id: Optional[str] = None) -> str:
+        clean_name = name.strip()
+        if not clean_name:
+            raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+
+        if not os.path.exists(self.uploads_dir):
+            return clean_name
+
+        existing_names = set()
+        safe_exclude = sanitize_filename(exclude_project_id) if exclude_project_id else None
+
+        for p_id in os.listdir(self.uploads_dir):
+            if safe_exclude and (p_id == safe_exclude or p_id == exclude_project_id):
+                continue
+
+            p_dir = os.path.join(self.uploads_dir, p_id)
+            if not os.path.isdir(p_dir):
+                continue
+
+            meta_path = os.path.join(p_dir, "metadata.json")
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    m_id = meta.get("id")
+                    if safe_exclude and (m_id == safe_exclude or m_id == exclude_project_id):
+                        continue
+                    p_name = meta.get("name", "").strip()
+                    if p_name:
+                        existing_names.add(p_name.lower())
+
+
+                except Exception as e:
+                    logger.warning(f"Failed to check duplicate name in project '{p_id}': {e}")
+
+        if clean_name.lower() in existing_names:
+            raise HTTPException(
+                status_code=400,
+                detail=f"A project named '{clean_name}' already exists. Please choose a unique name."
+            )
+        return clean_name
+
+    def _get_unique_project_name(self, name: str, exclude_project_id: Optional[str] = None) -> str:
+        base_name = name.strip() or "Image Project"
+        candidate = base_name
+        idx = 1
+        while True:
+            try:
+                self._validate_unique_project_name(candidate, exclude_project_id=exclude_project_id)
+                return candidate
+            except HTTPException:
+                idx += 1
+                candidate = f"{base_name} {idx}"
+
     def create_project(self, name: str = "Image Project", project_type: str = "image", description: str = "") -> dict:
+        unique_name = self._get_unique_project_name(name)
         project_id = f"proj-{uuid.uuid4().hex[:8]}"
         project_data = {
             "id": project_id,
-            "name": name,
+            "name": unique_name,
             "type": project_type,
             "description": description,
             "created_at": datetime.now().isoformat(),
@@ -147,6 +203,8 @@ class DatasetService:
         for cls in project_data["classes"]:
             os.makedirs(self._get_class_dir(project_id, cls["name"]), exist_ok=True)
         return self.get_project(project_id)
+
+
 
     def reset_project(self, project_id: str) -> dict:
         project_dir = os.path.join(self.uploads_dir, project_id)
@@ -296,8 +354,7 @@ class DatasetService:
 
     def update_project(self, project_id: str, name: str, description: Optional[str] = None) -> dict:
         clean_name = name.strip()
-        if not clean_name:
-            raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+        self._validate_unique_project_name(clean_name, exclude_project_id=project_id)
 
         project = self.get_project(project_id)
         project["name"] = clean_name
@@ -306,6 +363,7 @@ class DatasetService:
 
         self._save_metadata(project_id, project)
         return project
+
 
     def duplicate_project(self, project_id: str) -> dict:
         source_project = self.get_project(project_id)
@@ -711,6 +769,90 @@ class DatasetService:
                 logger.warning(f"Failed to remove old training_metadata.json for imported project '{project_id}': {e}")
 
         return self.get_project(project_id)
+
+    def list_all_projects(self) -> List[dict]:
+        projects = []
+        if not os.path.exists(self.uploads_dir):
+            return []
+
+        for p_id in os.listdir(self.uploads_dir):
+            p_dir = os.path.join(self.uploads_dir, p_id)
+            if not os.path.isdir(p_dir):
+                continue
+
+            meta_path = os.path.join(p_dir, "metadata.json")
+            if not os.path.exists(meta_path):
+                continue
+
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+
+                classes_list = meta.get("classes", [])
+                total_images = 0
+                class_summaries = []
+
+                for c in classes_list:
+                    c_dir = os.path.join(p_dir, sanitize_filename(c.get("name", "")))
+                    img_count = len(c.get("images", []))
+                    if os.path.exists(c_dir):
+                        files = [f for f in os.listdir(c_dir) if os.path.splitext(f)[1].lower() in ALLOWED_EXTENSIONS]
+                        img_count = max(img_count, len(files))
+
+                    total_images += img_count
+                    class_summaries.append({
+                        "id": c.get("id"),
+                        "name": c.get("name"),
+                        "color": c.get("color"),
+                        "disabled": c.get("disabled", False),
+                        "image_count": img_count
+                    })
+
+                # Do not return empty projects with 0 total images across all classes in history
+                if total_images == 0:
+                    continue
+
+                t_meta_path = os.path.join(p_dir, "training_metadata.json")
+
+                model_path = os.path.join(p_dir, "models", "model.keras")
+                has_model = os.path.exists(model_path)
+
+                metrics = None
+                under_the_hood = None
+                trained_at = None
+
+                if os.path.exists(t_meta_path):
+                    try:
+                        with open(t_meta_path, "r", encoding="utf-8") as tf_file:
+                            t_meta = json.load(tf_file)
+                        trained_at = t_meta.get("trained_at")
+                        metrics = t_meta.get("metrics")
+                        under_the_hood = t_meta.get("under_the_hood")
+                    except Exception as e:
+                        logger.warning(f"Failed to read training metadata for project '{p_id}': {e}")
+
+                projects.append({
+                    "id": meta.get("id", p_id),
+                    "name": meta.get("name", "Image Project"),
+                    "type": meta.get("type", "image"),
+                    "description": meta.get("description", ""),
+                    "created_at": meta.get("created_at", datetime.now().isoformat()),
+                    "classes_count": len(classes_list),
+                    "total_images_count": total_images,
+                    "has_trained_model": has_model,
+                    "trained_at": trained_at,
+                    "metrics": metrics,
+                    "under_the_hood": under_the_hood,
+                    "classes": class_summaries
+                })
+
+            except Exception as e:
+                logger.warning(f"Failed to process project directory '{p_id}': {e}")
+
+        # Sort projects by creation timestamp descending (newest first)
+        projects.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return projects
+
 
 
 

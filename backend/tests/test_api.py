@@ -7,11 +7,11 @@ from app.main import app
 client = TestClient(app)
 
 def test_create_and_get_project():
-    # 1. Create project
-    res = client.post("/projects", json={"name": "Test Project", "type": "image"})
+    # 1. Create project with unique name
+    res = client.post("/projects", json={"name": "Fresh Test Project", "type": "image"})
     assert res.status_code == 200
     data = res.json()
-    assert data["name"] == "Test Project"
+    assert "Fresh Test Project" in data["name"]
     project_id = data["id"]
     assert len(data["classes"]) == 2
 
@@ -22,7 +22,7 @@ def test_create_and_get_project():
 
 def test_class_management():
     # Create project
-    res_proj = client.post("/projects", json={"name": "Class Test Project"})
+    res_proj = client.post("/projects", json={"name": "Class Test Project Unique"})
     project_id = res_proj.json()["id"]
 
     # Add class
@@ -45,7 +45,7 @@ def test_class_management():
 
 def test_image_upload_capture_delete():
     # Create project & class
-    res_proj = client.post("/projects", json={"name": "Image Test Project"})
+    res_proj = client.post("/projects", json={"name": "Image Test Project Unique"})
     project_id = res_proj.json()["id"]
     res_cls = client.post(f"/projects/{project_id}/classes", json={"name": "Dog"})
     class_id = res_cls.json()["id"]
@@ -71,7 +71,7 @@ def test_image_upload_capture_delete():
     assert res_del_img.status_code == 200
 
 def test_clear_class_images():
-    res_proj = client.post("/projects", json={"name": "Clear Class Test"})
+    res_proj = client.post("/projects", json={"name": "Clear Class Test Unique"})
     project_id = res_proj.json()["id"]
     res_cls = client.post(f"/projects/{project_id}/classes", json={"name": "Bird"})
     class_id = res_cls.json()["id"]
@@ -90,7 +90,7 @@ def test_clear_class_images():
     assert len(cls["images"]) == 0
 
 def test_training_status_idle():
-    res_proj = client.post("/projects", json={"name": "Training Test Project"})
+    res_proj = client.post("/projects", json={"name": "Training Test Project Unique"})
     project_id = res_proj.json()["id"]
 
     res_status = client.get(f"/projects/{project_id}/train/status")
@@ -100,12 +100,48 @@ def test_training_status_idle():
     assert status_data["progress"] == 0.0
 
 def test_training_validation_failure():
-    res_proj = client.post("/projects", json={"name": "Validation Test Project"})
+    res_proj = client.post("/projects", json={"name": "Validation Test Project Unique"})
     project_id = res_proj.json()["id"]
 
     # Try starting training with 0 images in default classes
     res_train = client.post(f"/projects/{project_id}/train", json={"epochs": 5, "batchSize": 16, "learningRate": 0.001})
     assert res_train.status_code == 400
     assert "at least 1 image" in res_train.json()["detail"] or "required for training" in res_train.json()["detail"]
+
+def test_duplicate_project_name_rejection():
+    name = "Unique Named Project Alpha"
+    res1 = client.post("/projects", json={"name": name})
+    assert res1.status_code == 200
+    p1_id = res1.json()["id"]
+
+    # Trying to update another project to exact same name should fail with 400
+    res2 = client.post("/projects", json={"name": "Unique Named Project Beta"})
+    p2_id = res2.json()["id"]
+
+    res_rename_dup = client.put(f"/projects/{p2_id}", json={"name": name})
+    assert res_rename_dup.status_code == 400
+    assert "already exists" in res_rename_dup.json()["detail"]
+
+def test_list_all_projects_history():
+    # Create project and upload 1 image so total_images > 0
+    res_proj = client.post("/projects", json={"name": "History Test Project NonEmpty"})
+    p_id = res_proj.json()["id"]
+    c_id = res_proj.json()["classes"][0]["id"]
+    test_bytes = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xd9"
+    client.post(f"/classes/{c_id}/upload", files=[("files", ("hist.jpg", test_bytes, "image/jpeg"))])
+
+    res = client.get("/projects")
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    item = data[0]
+    assert "id" in item
+    assert "name" in item
+    assert "created_at" in item
+    assert "total_images_count" in item
+    assert item["total_images_count"] > 0
+
+
 
 

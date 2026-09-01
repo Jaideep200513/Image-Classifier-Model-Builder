@@ -40,18 +40,18 @@ export default function ConfirmLeaveModal({
 
           {/* Header icon */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-foreground">Are you sure you want to go back?</h3>
-              <p className="text-xs text-muted-foreground">Confirm data erasure</p>
+              <h3 className="text-base font-bold text-foreground">Leave Workspace?</h3>
+              <p className="text-xs text-muted-foreground">Project saved in History</p>
             </div>
           </div>
 
           {/* Body */}
-          <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/60 p-3.5 text-xs text-rose-900 leading-relaxed">
-            Going back to <span className="font-semibold">New Project</span> will permanently erase all uploaded image samples, webcam captures, custom dataset classes, and the trained machine learning model.
+          <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/60 p-3.5 text-xs text-violet-900 leading-relaxed">
+            Your project, dataset samples, and trained model are automatically saved in <span className="font-semibold">History</span>. You can return to or export this project anytime.
           </div>
 
           {/* Footer buttons */}
@@ -63,17 +63,15 @@ export default function ConfirmLeaveModal({
               disabled={isResetting}
               className="text-xs"
             >
-              Cancel
+              Stay in Workspace
             </Button>
             <Button
-              variant="destructive"
               size="sm"
               onClick={onConfirm}
               disabled={isResetting}
-              className="gap-1.5 text-xs"
+              className="gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              {isResetting ? "Erasing Data..." : "Erase Data & Leave"}
+              Leave Workspace
             </Button>
           </div>
         </motion.div>
@@ -81,3 +79,4 @@ export default function ConfirmLeaveModal({
     </AnimatePresence>
   );
 }
+
