@@ -18,7 +18,8 @@ class ExportService:
         self.uploads_dir = os.path.abspath(uploads_dir)
 
     def _get_project_dir(self, project_id: str) -> str:
-        return os.path.join(self.uploads_dir, project_id)
+        safe_pid = sanitize_filename(project_id)
+        return os.path.join(self.uploads_dir, safe_pid)
 
     def _get_model_path(self, project_id: str) -> str:
         return os.path.join(self._get_project_dir(project_id), "models", "model.keras")

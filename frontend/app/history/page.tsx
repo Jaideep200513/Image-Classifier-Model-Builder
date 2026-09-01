@@ -23,6 +23,7 @@ import {
   Grid2X2,
   Grid3X3,
   ArrowUpDown,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { api } from "@/lib/api";
@@ -76,10 +77,18 @@ export default function HistoryPage() {
     },
   });
 
-  const filteredProjects = projects.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const cleanQuery = searchQuery.trim().toLowerCase();
+
+  const filteredProjects = projects.filter((p) => {
+    if (!cleanQuery) return true;
+    const nameMatch = (p.name || "").toLowerCase().includes(cleanQuery);
+    const idMatch = (p.id || "").toLowerCase().includes(cleanQuery);
+    const descMatch = (p.description || "").toLowerCase().includes(cleanQuery);
+    const classMatch = (p.classes || []).some((c) =>
+      (c.name || "").toLowerCase().includes(cleanQuery)
+    );
+    return nameMatch || idMatch || descMatch || classMatch;
+  });
 
   const sortedProjects = [...filteredProjects].sort((a, b) => {
     if (sortBy === "none") return 0;
@@ -206,11 +215,20 @@ export default function HistoryPage() {
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by project name or ID..."
+              placeholder="Search by project name, ID, class name, or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs bg-white rounded-xl border border-gray-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
+              className="w-full pl-10 pr-9 py-2 text-xs bg-white rounded-xl border border-gray-200 shadow-2xs focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Sort & View Control Dropdowns */}

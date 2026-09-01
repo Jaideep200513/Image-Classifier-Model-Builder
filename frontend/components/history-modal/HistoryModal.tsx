@@ -63,10 +63,18 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
 
   if (!isOpen) return null;
 
-  const filteredProjects = projects.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const cleanQuery = searchQuery.trim().toLowerCase();
+
+  const filteredProjects = projects.filter((p) => {
+    if (!cleanQuery) return true;
+    const nameMatch = (p.name || "").toLowerCase().includes(cleanQuery);
+    const idMatch = (p.id || "").toLowerCase().includes(cleanQuery);
+    const descMatch = (p.description || "").toLowerCase().includes(cleanQuery);
+    const classMatch = (p.classes || []).some((c) =>
+      (c.name || "").toLowerCase().includes(cleanQuery)
+    );
+    return nameMatch || idMatch || descMatch || classMatch;
+  });
 
   const formatDateTime = (isoString?: string) => {
     if (!isoString) return { date: "N/A", time: "" };
@@ -141,11 +149,20 @@ export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search projects..."
+                    placeholder="Search by name, ID, class, or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-colors"
+                    className="w-full pl-9 pr-8 py-1.5 text-xs bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-colors"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Clear search"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 

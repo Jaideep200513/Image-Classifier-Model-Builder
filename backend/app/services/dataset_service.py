@@ -31,7 +31,8 @@ class DatasetService:
         os.makedirs(self.uploads_dir, exist_ok=True)
 
     def _get_project_dir(self, project_id: str) -> str:
-        project_dir = os.path.join(self.uploads_dir, project_id)
+        safe_pid = sanitize_filename(project_id)
+        project_dir = os.path.join(self.uploads_dir, safe_pid)
         os.makedirs(project_dir, exist_ok=True)
         return project_dir
 
@@ -127,8 +128,10 @@ class DatasetService:
             return clean_name
 
         existing_names = set()
+        safe_exclude = sanitize_filename(exclude_project_id) if exclude_project_id else None
+
         for p_id in os.listdir(self.uploads_dir):
-            if exclude_project_id and p_id == exclude_project_id:
+            if safe_exclude and (p_id == safe_exclude or p_id == exclude_project_id):
                 continue
 
             p_dir = os.path.join(self.uploads_dir, p_id)
@@ -140,9 +143,14 @@ class DatasetService:
                 try:
                     with open(meta_path, "r", encoding="utf-8") as f:
                         meta = json.load(f)
+                    m_id = meta.get("id")
+                    if safe_exclude and (m_id == safe_exclude or m_id == exclude_project_id):
+                        continue
                     p_name = meta.get("name", "").strip()
                     if p_name:
                         existing_names.add(p_name.lower())
+
+
                 except Exception as e:
                     logger.warning(f"Failed to check duplicate name in project '{p_id}': {e}")
 
@@ -800,7 +808,7 @@ class DatasetService:
                         "image_count": img_count
                     })
 
-                # Do not save or return empty projects with 0 total images across all classes
+                # Do not return empty projects with 0 total images across all classes in history
                 if total_images == 0:
                     continue
 
