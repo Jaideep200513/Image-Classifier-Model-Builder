@@ -64,7 +64,6 @@ export default function DatasetPanel({
         ))}
       </AnimatePresence>
 
-
       {/* Add Class Button */}
       <motion.button
         whileHover={{ scale: 1.01 }}

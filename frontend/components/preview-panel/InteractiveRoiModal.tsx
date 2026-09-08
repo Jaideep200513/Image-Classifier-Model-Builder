@@ -41,7 +41,7 @@ export default function InteractiveRoiModal({
     box: { x: 0, y: 0, width: 0, height: 0 },
   });
 
-  // Calculate default ROI box (centered 65% of display area)
+  // Calculate default crop box (centered 65% of display area)
   const initDefaultBox = useCallback((dispW: number, dispH: number) => {
     const w = Math.round(dispW * 0.65);
     const h = Math.round(dispH * 0.65);
@@ -164,7 +164,7 @@ export default function InteractiveRoiModal({
     }
   };
 
-  // Convert current ROI display coordinates to high-resolution canvas extraction
+  // Convert current display coordinates to high-resolution canvas extraction
   const handleApply = () => {
     if (!imgRef.current || displaySize.width === 0 || displaySize.height === 0) return;
 
@@ -202,10 +202,6 @@ export default function InteractiveRoiModal({
     }, "image/jpeg", 0.95);
   };
 
-  // Current natural crop dimensions for display badge
-  const calcNaturalCropW = naturalSize.width && displaySize.width ? Math.round((box.width * naturalSize.width) / displaySize.width) : 0;
-  const calcNaturalCropH = naturalSize.height && displaySize.height ? Math.round((box.height * naturalSize.height) / displaySize.height) : 0;
-
   if (!isOpen) return null;
 
   return (
@@ -225,20 +221,20 @@ export default function InteractiveRoiModal({
                 <Crop className="h-4 w-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Select Region of Interest (ROI)</h3>
-                <p className="text-[11px] text-slate-500">Drag or scale handles to isolate target object</p>
+                <h3 className="text-sm font-bold text-slate-900">Crop Image Area</h3>
+                <p className="text-[11px] text-slate-500">Drag or scale handles to isolate the object</p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Interactive ROI Canvas / Image Container */}
+          {/* Interactive Crop Canvas / Image Container */}
           <div className="relative flex-1 bg-slate-900 flex items-center justify-center p-4 overflow-hidden select-none">
             <div
               className="relative inline-block max-w-full max-h-[60vh] overflow-hidden rounded-lg shadow-xl"
@@ -248,7 +244,7 @@ export default function InteractiveRoiModal({
               <img
                 ref={imgRef}
                 src={imageSrc}
-                alt="ROI Source"
+                alt="Crop Source"
                 onLoad={handleImageLoad}
                 className="max-w-full max-h-[60vh] object-contain block pointer-events-none"
               />
@@ -285,13 +281,8 @@ export default function InteractiveRoiModal({
                       <div className="border-r border-b border-white" />
                       <div className="border-r border-b border-white" />
                       <div className="border-b border-white" />
-                      <div className="border-r border-white" />
-                      <div className="border-r border-white" />
-                    </div>
-
-                    {/* Dimension Badge */}
-                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-900/90 text-white text-[10px] font-mono font-bold tracking-wider pointer-events-none border border-slate-700 shadow-md">
-                      {calcNaturalCropW} × {calcNaturalCropH} px
+                      <div className="border-r border-b border-white" />
+                      <div className="border-r border-b border-white" />
                     </div>
 
                     {/* Corner Handles */}
@@ -327,7 +318,7 @@ export default function InteractiveRoiModal({
               variant="outline"
               size="sm"
               onClick={handleResetBox}
-              className="gap-1.5 text-xs text-slate-700 hover:bg-slate-200/60"
+              className="gap-1.5 text-xs text-slate-700 hover:bg-slate-200/60 cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Reset Selection
@@ -338,7 +329,7 @@ export default function InteractiveRoiModal({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-xs text-slate-600"
+                className="text-xs text-slate-600 cursor-pointer"
               >
                 Cancel
               </Button>
@@ -349,7 +340,7 @@ export default function InteractiveRoiModal({
                 className="btn-purple text-xs gap-1.5 cursor-pointer shadow-md"
               >
                 <Check className="h-3.5 w-3.5" />
-                Apply ROI Crop
+                Apply Crop
               </Button>
             </div>
           </div>

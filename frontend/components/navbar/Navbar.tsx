@@ -39,7 +39,13 @@ export default function Navbar() {
             {/* Logo lockup */}
             <Link
               href="/"
-              className="flex items-center gap-2 group"
+              onClick={(e) => {
+                if (pathname === "/") {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+              className="flex items-center gap-2 group cursor-pointer"
               aria-label="ModelForge Home"
             >
               {/* Concentric ring icon mark */}

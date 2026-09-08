@@ -102,7 +102,12 @@ class DatasetService:
                     ext = os.path.splitext(f)[1].lower()
                     if ext in ALLOWED_EXTENSIONS:
                         if f in known_imgs:
-                            existing_images.append(known_imgs[f])
+                            img_dict = dict(known_imgs[f])
+                            if "class_id" not in img_dict or not img_dict["class_id"]:
+                                img_dict["class_id"] = cls["id"]
+                            if "created_at" not in img_dict or not img_dict["created_at"]:
+                                img_dict["created_at"] = datetime.now().isoformat()
+                            existing_images.append(img_dict)
                         else:
                             img_id = f"img-{uuid.uuid4().hex[:8]}"
                             img_url = f"/uploads/{project_id}/{sanitize_filename(cls['name'])}/{f}"
@@ -238,7 +243,6 @@ class DatasetService:
         for cls in default_data["classes"]:
             os.makedirs(self._get_class_dir(project_id, cls["name"]), exist_ok=True)
         return default_data
-
 
     def add_class(self, project_id: str, name: str) -> dict:
         clean_name = name.strip()

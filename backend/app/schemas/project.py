@@ -5,8 +5,8 @@ class ImageItem(BaseModel):
     id: str
     filename: str
     url: str
-    class_id: str
-    created_at: str
+    class_id: Optional[str] = None
+    created_at: Optional[str] = None
 
 class ImageClass(BaseModel):
     id: str

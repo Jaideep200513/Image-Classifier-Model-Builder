@@ -73,16 +73,6 @@ export default function ProjectCard() {
             >
               <ImageIcon className="h-5 w-5" style={{ color: "#5f79ff" }} />
             </div>
-            <span
-              className="rounded-full px-3 py-0.5 text-xs font-medium border"
-              style={{
-                backgroundColor: "#f5f5f5",
-                borderColor: "#e5e7eb",
-                color: "#5f79ff",
-              }}
-            >
-              Ready to Train
-            </span>
           </div>
 
           <h2 className="mb-1.5 text-xl font-semibold" style={{ color: "#000000" }}>

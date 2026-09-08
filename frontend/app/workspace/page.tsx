@@ -142,9 +142,16 @@ function WorkspaceContent() {
             </Button>
           </motion.div>
 
-          <div className="flex items-center gap-2">
+          <div
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              document.querySelectorAll(".overflow-y-auto").forEach((el) => el.scrollTo({ top: 0, behavior: "smooth" }));
+            }}
+            className="flex items-center gap-2 cursor-pointer select-none group"
+            title="Scroll to top"
+          >
             <div
-              className="flex h-7 w-7 items-center justify-center flex-shrink-0 rounded-full"
+              className="flex h-7 w-7 items-center justify-center flex-shrink-0 rounded-full transition-transform duration-200 group-hover:scale-105"
               style={{ background: "#5f79ff" }}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -153,7 +160,7 @@ function WorkspaceContent() {
                 <circle cx="8" cy="8" r="1.5" fill="white"/>
               </svg>
             </div>
-            <span className="hidden text-sm font-bold text-foreground sm:block" style={{ fontFamily: "'Inter', sans-serif" }}>ModelForge</span>
+            <span className="hidden text-sm font-bold text-foreground sm:block group-hover:text-[#5f79ff] transition-colors" style={{ fontFamily: "'Inter', sans-serif" }}>ModelForge</span>
           </div>
           {isEditingProjectName ? (
             <div className="flex items-center gap-1">

@@ -364,7 +364,7 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
               <img src={activeImageSrc} alt="Cropped ROI" className="max-w-full max-h-full object-contain rounded-lg shadow-md" />
               <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-600/90 text-white text-[10px] font-bold shadow">
                 <Crop className="h-3 w-3" />
-                ROI Active (Cropped)
+                Cropped Image
               </div>
             </div>
           ) : inputSource === "webcam" ? (
@@ -430,12 +430,12 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
         {hasModel && inputOn && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              {/* ROI Crop / Edit Button */}
+              {/* Crop / Edit Button */}
               <button
                 onClick={handleOpenRoiModal}
                 disabled={isPredicting || (inputSource === "upload" && !originalImageSrc)}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 text-xs py-2 font-semibold rounded-xl border transition-all cursor-pointer",
+                  "flex-1 flex items-center justify-center gap-2 text-[16.5px] font-medium py-2.5 rounded-full border transition-all cursor-pointer",
                   isRoiCropped
                     ? "border-purple-300 bg-purple-50 text-purple-800 hover:bg-purple-100"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
@@ -445,13 +445,13 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
               >
                 {isRoiCropped ? (
                   <>
-                    <Edit2 className="h-3.5 w-3.5 text-purple-600" />
-                    Edit ROI
+                    <Edit2 className="h-4 w-4 text-purple-600" />
+                    Edit Crop
                   </>
                 ) : (
                   <>
-                    <Crop className="h-3.5 w-3.5 text-purple-600" />
-                    Crop ROI
+                    <Crop className="h-4 w-4 text-purple-600" />
+                    Crop
                   </>
                 )}
               </button>
@@ -461,11 +461,11 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
                 <button
                   onClick={handleResetToFullImage}
                   disabled={isPredicting}
-                  className="flex items-center justify-center gap-1 text-xs py-2 px-3 font-medium rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 text-[16.5px] font-medium py-2.5 px-4 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
                   id="reset-roi-btn"
                   title="Reset to original uncropped image"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <RotateCcw className="h-4 w-4" />
                   Reset
                 </button>
               )}
@@ -490,7 +490,7 @@ export default function PreviewPanel({ classes = [], projectId = "default-projec
                 ) : isRoiCropped ? (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Predict Cropped ROI
+                    Predict Cropped Image
                   </>
                 ) : inputSource === "webcam" ? (
                   <>
