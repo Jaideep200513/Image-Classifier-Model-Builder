@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Cpu, Play, Settings2, CheckCircle2, AlertCircle, Loader2, RotateCcw, XCircle, ArrowLeftRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Cpu, Play, Settings2, CheckCircle2, AlertCircle, Loader2, RotateCcw, XCircle, ArrowLeftRight, HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,10 +15,109 @@ import UnderTheHoodModal from "./UnderTheHoodModal";
 
 const DEFAULT_CONFIG: TrainingConfig = { epochs: 50, batchSize: 16, learningRate: 0.001 };
 
-const FIELDS: { id: string; label: string; desc: string; field: keyof TrainingConfig; step: number }[] = [
-  { id: "epochs-input",        label: "Epochs",        desc: "Passes through the dataset",    field: "epochs",       step: 1 },
-  { id: "batch-size-input",    label: "Batch Size",    desc: "Samples per gradient step",     field: "batchSize",    step: 1 },
-  { id: "learning-rate-input", label: "Learning Rate", desc: "Gradient descent step size",    field: "learningRate", step: 0.0001 },
+function InfoTooltip({ title, description }: { title: string; description: string }) {
+  const [show, setShow] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; arrowLeft: number } | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const tooltipWidth = 260;
+      let left = rect.left - 24;
+      if (typeof window !== "undefined") {
+        if (left + tooltipWidth > window.innerWidth - 16) {
+          left = window.innerWidth - tooltipWidth - 16;
+        }
+        if (left < 16) left = 16;
+      }
+      const iconCenter = rect.left + rect.width / 2;
+      const arrowLeft = iconCenter - left;
+
+      setCoords({
+        top: rect.bottom + 8,
+        left,
+        arrowLeft,
+      });
+      setShow(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setShow(false);
+  };
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className="inline-flex items-center cursor-help"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        <HelpCircle className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+      </div>
+      {show && coords && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+              zIndex: 99999,
+              width: "260px",
+            }}
+            className="p-3 bg-slate-900 text-white text-xs rounded-xl shadow-2xl pointer-events-none leading-relaxed transition-all animate-in fade-in-50 zoom-in-95"
+          >
+            <p className="font-bold text-white mb-1 border-b border-slate-700/80 pb-1">{title}</p>
+            <p className="text-slate-200 font-normal text-[11.5px] leading-relaxed">{description}</p>
+            <div
+              className="absolute bottom-full border-4 border-transparent border-b-slate-900"
+              style={{ left: `${Math.max(8, Math.min(coords.arrowLeft - 4, 244))}px` }}
+            />
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
+
+const FIELDS: {
+  id: string;
+  label: string;
+  desc: string;
+  field: keyof TrainingConfig;
+  step: number;
+  tooltipTitle: string;
+  tooltipDesc: string;
+}[] = [
+  {
+    id: "epochs-input",
+    label: "Epochs",
+    desc: "Passes through the dataset",
+    field: "epochs",
+    step: 1,
+    tooltipTitle: "Epochs",
+    tooltipDesc: "One epoch means that every image in the dataset has been passed through the neural network once. More epochs give the model more time to learn, but too many may cause overfitting.",
+  },
+  {
+    id: "batch-size-input",
+    label: "Batch Size",
+    desc: "Samples per gradient step",
+    field: "batchSize",
+    step: 1,
+    tooltipTitle: "Batch Size",
+    tooltipDesc: "The number of training samples processed together before updating model weights. Smaller batches adapt faster with more frequent updates; larger batches provide smoother gradient estimates.",
+  },
+  {
+    id: "learning-rate-input",
+    label: "Learning Rate",
+    desc: "Gradient descent step size",
+    field: "learningRate",
+    step: 0.0001,
+    tooltipTitle: "Learning Rate",
+    tooltipDesc: "Controls how much model weights are adjusted during each step of gradient descent. If too large, training may fail to converge; if too small, training will take longer to learn.",
+  },
 ];
 
 interface TrainingPanelProps {
@@ -284,9 +384,14 @@ export default function TrainingPanel({ classes = [], projectId = "default-proje
             </AccordionTrigger>
             <AccordionContent className="pt-4 pb-1">
               <div className="space-y-3">
-                {FIELDS.map(({ id, label, desc, field, step }) => (
+                {FIELDS.map(({ id, label, desc, field, step, tooltipTitle, tooltipDesc }) => (
                   <div key={id} className="space-y-1">
-                    <label htmlFor={id} className="text-xs font-semibold text-foreground">{label}</label>
+                    <div className="flex items-center gap-1.5">
+                      <label htmlFor={id} className="text-xs font-semibold text-foreground cursor-pointer">
+                        {label}
+                      </label>
+                      <InfoTooltip title={tooltipTitle} description={tooltipDesc} />
+                    </div>
                     <p className="text-[10px] text-muted-foreground">{desc}</p>
                     <Input
                       id={id}

@@ -6,8 +6,8 @@ export interface ImageItem {
   id: string;
   filename: string;
   url: string;
-  class_id: string;
-  created_at: string;
+  class_id?: string;
+  created_at?: string;
 }
 
 export interface ImageClass {
