@@ -483,6 +483,11 @@ class TrainingService:
             model_dir = self._get_model_dir(project_id)
             model_save_path = os.path.join(model_dir, "model.keras")
             model.save(model_save_path)
+            try:
+                h5_save_path = os.path.join(model_dir, "keras_model.h5")
+                model.save(h5_save_path)
+            except Exception as e:
+                logger.warning(f"Could not save secondary keras_model.h5: {e}")
 
             training_meta = {
                 "trained_at": datetime.now().isoformat(),

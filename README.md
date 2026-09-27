@@ -23,7 +23,7 @@ ModelForge is a fast, internal, production-ready platform inspired by Teachable 
 | **State Management** | TanStack Query (`@tanstack/react-query`) | Asynchronous server-state management & live polling |
 | **Animations** | Framer Motion | Dynamic layout transitions & animated confidence bars |
 | **Backend API** | FastAPI (Python) | High-performance async REST API framework |
-| **Machine Learning** | TensorFlow 2.x & Keras 3 | MobileNetV2 Transfer Learning & In-Memory Inference |
+| **Machine Learning** | TensorFlow 2.15.0 & Keras < 3.0.0 | MobileNetV2 Transfer Learning & In-Memory Inference |
 | **Storage & Persistence**| Filesystem Storage | Clean directory layout under `backend/uploads/{project_id}/` |
 
 ---
@@ -67,7 +67,7 @@ image-model-builder/
 
 ### Prerequisites
 - **Node.js**: v18.x or higher
-- **Python**: v3.10 to v3.13
+- **Python**: v3.11 (Required for TensorFlow 2.15.0)
 - **Git**
 
 ---

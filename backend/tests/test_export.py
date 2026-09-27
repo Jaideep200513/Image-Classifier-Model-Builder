@@ -100,9 +100,10 @@ def test_export_and_project_management():
     assert res_stats.json()["images_count"] == 20
 
     # 9. Test Update Project Name
-    res_update = client.put(f"/projects/{proj_id}", json={"name": "Renamed Export Proj", "description": "Updated desc"})
+    unique_rename = f"Renamed Proj {proj_id[:6]}"
+    res_update = client.put(f"/projects/{proj_id}", json={"name": unique_rename, "description": "Updated desc"})
     assert res_update.status_code == 200
-    assert res_update.json()["name"] == "Renamed Export Proj"
+    assert res_update.json()["name"] == unique_rename
 
     # 10. Test Duplicate Project
     res_dup = client.post(f"/projects/{proj_id}/duplicate")
@@ -114,3 +115,6 @@ def test_export_and_project_management():
     res_del = client.delete(f"/projects/{dup_id}")
     assert res_del.status_code == 200
     assert res_del.json()["success"] is True
+
+    # Cleanup main test project
+    client.delete(f"/projects/{proj_id}")

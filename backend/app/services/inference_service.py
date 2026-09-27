@@ -24,7 +24,16 @@ class InferenceService:
         return os.path.join(self.uploads_dir, safe_pid)
 
     def _get_model_path(self, project_id: str) -> str:
-        return os.path.join(self._get_project_dir(project_id), "models", "model.keras")
+        keras_path = os.path.join(self._get_project_dir(project_id), "models", "model.keras")
+        if os.path.exists(keras_path):
+            return keras_path
+        h5_path = os.path.join(self._get_project_dir(project_id), "models", "keras_model.h5")
+        if os.path.exists(h5_path):
+            return h5_path
+        alt_h5_path = os.path.join(self._get_project_dir(project_id), "models", "model.h5")
+        if os.path.exists(alt_h5_path):
+            return alt_h5_path
+        return keras_path
 
     def _get_training_meta_path(self, project_id: str) -> str:
         return os.path.join(self._get_project_dir(project_id), "training_metadata.json")
