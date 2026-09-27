@@ -22,7 +22,16 @@ class ExportService:
         return os.path.join(self.uploads_dir, safe_pid)
 
     def _get_model_path(self, project_id: str) -> str:
-        return os.path.join(self._get_project_dir(project_id), "models", "model.keras")
+        keras_path = os.path.join(self._get_project_dir(project_id), "models", "model.keras")
+        if os.path.exists(keras_path):
+            return keras_path
+        h5_path = os.path.join(self._get_project_dir(project_id), "models", "keras_model.h5")
+        if os.path.exists(h5_path):
+            return h5_path
+        alt_h5_path = os.path.join(self._get_project_dir(project_id), "models", "model.h5")
+        if os.path.exists(alt_h5_path):
+            return alt_h5_path
+        return keras_path
 
     def _get_training_meta_path(self, project_id: str) -> str:
         return os.path.join(self._get_project_dir(project_id), "training_metadata.json")
@@ -186,7 +195,9 @@ class ExportService:
                 model = tf.keras.models.load_model(model_path)
                 model.save(h5_path)
             except Exception as e:
-                logger.warning(f"Model.save failed, copying model file directly: {e}")
+                logger.warning(f"Model.save to .h5 failed, checking direct copy: {e}")
+                if os.path.exists(model_path) and not os.path.exists(h5_path):
+                    shutil.copyfile(model_path, h5_path)
 
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -217,11 +228,15 @@ class ExportService:
         saved_model_dir = os.path.join(temp_dir, "saved_model")
 
         try:
-            # Export to TensorFlow SavedModel format using Keras 3 export API
+            # Export to TensorFlow SavedModel format (Keras 3 export API or TF 2.15/Keras 2 tf.saved_model.save)
             try:
-                model.export(saved_model_dir)
+                if hasattr(model, "export"):
+                    model.export(saved_model_dir)
+                else:
+                    tf.saved_model.save(model, saved_model_dir)
             except Exception as e:
-                logger.warning(f"model.export failed, falling back to tf.keras.models.save_model: {e}")
+                logger.warning(f"Primary model export failed, falling back to tf.saved_model.save: {e}")
+                tf.saved_model.save(model, saved_model_dir)
 
             zip_buffer = io.BytesIO()
 

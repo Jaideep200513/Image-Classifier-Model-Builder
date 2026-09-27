@@ -334,9 +334,9 @@ class DatasetService:
         total_images = sum(len(cls.get("images", [])) for cls in project["classes"])
 
         training_meta_path = os.path.join(self._get_project_dir(project_id), "training_metadata.json")
-        model_path = os.path.join(self._get_project_dir(project_id), "models", "model.keras")
-
-        has_model = os.path.exists(model_path)
+        model_dir = os.path.join(self._get_project_dir(project_id), "models")
+        model_path = os.path.join(model_dir, "model.keras")
+        has_model = os.path.exists(model_path) or os.path.exists(os.path.join(model_dir, "keras_model.h5")) or os.path.exists(os.path.join(model_dir, "model.h5"))
         trained_at = None
         if os.path.exists(training_meta_path):
             try:
@@ -818,8 +818,9 @@ class DatasetService:
 
                 t_meta_path = os.path.join(p_dir, "training_metadata.json")
 
-                model_path = os.path.join(p_dir, "models", "model.keras")
-                has_model = os.path.exists(model_path)
+                m_dir = os.path.join(p_dir, "models")
+                model_path = os.path.join(m_dir, "model.keras")
+                has_model = os.path.exists(model_path) or os.path.exists(os.path.join(m_dir, "keras_model.h5")) or os.path.exists(os.path.join(m_dir, "model.h5"))
 
                 metrics = None
                 under_the_hood = None

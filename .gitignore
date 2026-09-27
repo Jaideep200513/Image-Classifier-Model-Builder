@@ -11,6 +11,10 @@ __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
+venv/
+**/venv/
+.venv/
+**/.venv/
 
 
 # Uploads and trained models (runtime data)
